@@ -139,3 +139,12 @@ loop(){
 	
 }
 -------------------------------
+
+
+Arquivos:
+
+gladCodeMain.c - Arquivo principal. Recebe como argumento o número de gladiadores, e o nome do arquivo fonte de cada um. Este programa chama uma thread para cada gladiador.
+c1.c, c2.c, c3.c - Arquivos fontes de exemplo para cada gladiador. Possuem as funções setup, loop e um include para gladCodeIO.c
+gladCodeIO.c - Programa que gerencia o arquivo que contém as informações gladiadores, a tranca para evitar condições de disputa. Possui também o main que chama setup e loop.
+gladCodeAPI.c - Cada função disponível para o programador dos gladiadores está contida aqui, bem como outras auxiliares.
+gladCodeRuntimeRender.c - Responsável por renderizar a batalha enquanto está sendo processada. Utiliza a biblioteca Allegro para isso. É um arquivo provisório, só para dar ideia do que está acontecendo enquanto o programa está correndo. A renderização fo projeto será feita baseada num arquivo texto de saída, futuramente.
