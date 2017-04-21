@@ -110,6 +110,7 @@ loop é executado a cada intervalo de tempo da rodada (0.1s)
 Exemplo na linguagem C:
 
 ------ meu_glad.c -------------
+```
 setup(){
 	registerGlad();
 	setName("Tutorius");
@@ -138,6 +139,7 @@ loop(){
 		turn(60);
 	
 }
+```
 -------------------------------
 
 
