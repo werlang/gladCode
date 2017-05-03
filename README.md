@@ -125,16 +125,16 @@ setup(){
 }
 
 loop(){
-	int x_i, y_i;
+	float x_i, y_i;
 	if (getLowHp(&x_i,&y_i)){
-		if (calc_dist(x_i,y_i) > 1){
-			if (getAp() >= 10)
+		if (getDist(x_i,y_i) > 1){
+			if (getMyAp() >= 10)
 				charge(x_i,y_i);
 			else
 				moveTo(x_i,y_i);
 		}
 		else{
-			if (getAp() >= 70 || (getHp() <= 40 && getAp() >= 20))
+			if (getMyAp() >= 70 || (getMyHp() <= 40 && getMyAp() >= 20))
 				block();
 			attackMelee();
 		}
