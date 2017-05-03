@@ -1,45 +1,13 @@
 #define PROJECTILE_TYPE_ATTACK 0
 #define PROJECTILE_TYPE_FIREBALL 1
 
-//struct
-struct gladiador{
-    char name[50];
-    float x; //pos horizontal
-    float y; //pos vertical
-    float head; //angulo da cabeca
-
-    int STR; //forca
-    int hp; //vida
-    int maxhp; //hp total
-    float dmg; //dano
-
-    int AGI; //agilidade
-    float as; //velocidade de ataque, em att/s
-    float spd; //velocidade de movimento, em p/s
-
-    int INT; //intelecto
-    int ap; //pontos de habilidade
-    float cs; //velocidade de lancamento de habilidades
-
-    int lvl; //nivel
-    float vrad; //raio de visao, em g
-    float vis; //alcance de visao, em p
-    float lockedfor; //tempo que esta trancado em uma acao
-    float lasthit;
-    int targetlocked;
-    int damagedme;
-    int up;
-};
-//numero de gladiadores presentes
-int nglad=0;
 //qual gladiador esta agindo no momento
 int gladid=0;
-//ponteiro dinamico para cada gladiador
-struct gladiador *g=NULL;
 //largura e altrua da arena, em passos
 float screenW = 25;
 float screenH = 25;
 float timeInterval = 0.1;
+int actioncode;
 //inicializa o gladiador
 void registerGlad(){
     //printf("[%i]",gladid);
@@ -48,8 +16,8 @@ void registerGlad(){
     (g+gladid)->vis = 9;
     (g+gladid)->lockedfor = 0;
     //inicia em uma posicao aleatoria do mapa
-    (g+gladid)->x = rand()%(int)(screenW);
-    (g+gladid)->y = rand()%(int)(screenH);
+    (g+gladid)->x = screenW/nglad * (gladid + 0.5);
+    (g+gladid)->y = gladid%2 * screenH + 2 - (gladid%2 * 4) ;
     //um angulo de visao aleatorio
     (g+gladid)->head = rand()%360;
     (g+gladid)->targetlocked = -1;
@@ -157,64 +125,96 @@ void preventLeaving(){
         (g+gladid)->x = 0;
 }
 
+void waitUntilReady(){
+    while ( (g+gladid)->lockedfor > 0 ){
+        updateProjectiles();
+        updateTime();
+        recordSteps();
+    }
+}
+
 //se move para a frente
 void moveForward(){
-    if ( (g+gladid)->lockedfor <= 0 ){
-        float hip = (g+gladid)->spd*timeInterval;
-        float ang = (g+gladid)->head;
-        float dx, dy;
-        calcSidesFromAngleDist(&dx, &dy, hip, ang);
+    waitUntilReady();
+    waitForMutex();
+    loadStructFromMemory();
+    float hip = (g+gladid)->spd*timeInterval;
+    float ang = (g+gladid)->head;
+    float dx, dy;
+    calcSidesFromAngleDist(&dx, &dy, hip, ang);
 
-        (g+gladid)->x += dx;
-        (g+gladid)->y -= dy;
+    (g+gladid)->x += dx;
+    (g+gladid)->y -= dy;
 
-        preventLeaving();
-    }
+    preventLeaving();
+
+    (g+gladid)->lockedfor = timeInterval;
+    actioncode = 1;
+    saveStructToMemory();
+    releaseMutex();
 }
 
 //se move para tras
 void moveBackwards(){
-    if ( (g+gladid)->lockedfor <= 0 ){
-        float hip = -(g+gladid)->spd*timeInterval;
-        float ang = (g+gladid)->head;
-        float dx, dy;
-        calcSidesFromAngleDist(&dx, &dy, hip, ang);
+    waitUntilReady();
+    waitForMutex();
+    loadStructFromMemory();
+    float hip = -(g+gladid)->spd*timeInterval;
+    float ang = (g+gladid)->head;
+    float dx, dy;
+    calcSidesFromAngleDist(&dx, &dy, hip, ang);
 
-        (g+gladid)->x += dx;
-        (g+gladid)->y -= dy;
+    (g+gladid)->x += dx;
+    (g+gladid)->y -= dy;
 
-        preventLeaving();
-    }
+    preventLeaving();
+
+    (g+gladid)->lockedfor = timeInterval;
+    actioncode = 1;
+    saveStructToMemory();
+    releaseMutex();
 }
 
 //se move para a esquerda
 void moveLeft(){
-    if ( (g+gladid)->lockedfor <= 0 ){
-        float hip = (g+gladid)->spd*timeInterval;
-        float ang = (g+gladid)->head-90;
-        float dx, dy;
-        calcSidesFromAngleDist(&dx, &dy, hip, ang);
+    waitUntilReady();
+    waitForMutex();
+    loadStructFromMemory();
+    float hip = (g+gladid)->spd*timeInterval;
+    float ang = (g+gladid)->head-90;
+    float dx, dy;
+    calcSidesFromAngleDist(&dx, &dy, hip, ang);
 
-        (g+gladid)->x += dx;
-        (g+gladid)->y -= dy;
+    (g+gladid)->x += dx;
+    (g+gladid)->y -= dy;
 
-        preventLeaving();
-    }
+    preventLeaving();
+
+    (g+gladid)->lockedfor = timeInterval;
+    actioncode = 1;
+    saveStructToMemory();
+    releaseMutex();
 }
 
 //se move para a direita
 void moveRight(){
-    if ( (g+gladid)->lockedfor <= 0 ){
-        float hip = (g+gladid)->spd*timeInterval;
-        float ang = (g+gladid)->head+90;
-        float dx, dy;
-        calcSidesFromAngleDist(&dx, &dy, hip, ang);
+    waitUntilReady();
+    waitForMutex();
+    loadStructFromMemory();
+    float hip = (g+gladid)->spd*timeInterval;
+    float ang = (g+gladid)->head+90;
+    float dx, dy;
+    calcSidesFromAngleDist(&dx, &dy, hip, ang);
 
-        (g+gladid)->x += dx;
-        (g+gladid)->y -= dy;
+    (g+gladid)->x += dx;
+    (g+gladid)->y -= dy;
 
-        preventLeaving();
-    }
+    preventLeaving();
+
+    (g+gladid)->lockedfor = timeInterval;
+    actioncode = 1;
+    saveStructToMemory();
+    releaseMutex();
 }
 
 //ajusta angulos para estarem entro 0-360, onde 0==360==note
@@ -228,76 +228,109 @@ float getNormalAngle(float ang){
 
 //vira a visao tantos graus
 void turn(float ang){
-    if ( (g+gladid)->lockedfor <= 0 ){
-        (g+gladid)->head += ang;
-        (g+gladid)->head = getNormalAngle((g+gladid)->head);
-    }
+    waitUntilReady();
+    waitForMutex();
+    loadStructFromMemory();
+    (g+gladid)->head += ang;
+    (g+gladid)->head = getNormalAngle((g+gladid)->head);
+    (g+gladid)->lockedfor = timeInterval;
+    actioncode = 1;
+    saveStructToMemory();
+    releaseMutex();
 }
 
 //se vira na direcao de um ponto
 void turnTo(float x, float y){
-    if ( (g+gladid)->lockedfor <= 0 ){
-        (g+gladid)->head = getAngle(x,y);
-        (g+gladid)->head = getNormalAngle((g+gladid)->head);
-    }
+    waitUntilReady();
+    waitForMutex();
+    loadStructFromMemory();
+    (g+gladid)->head = getAngle(x,y);
+    (g+gladid)->head = getNormalAngle((g+gladid)->head);
+    (g+gladid)->lockedfor = timeInterval;
+    actioncode = 1;
+    saveStructToMemory();
+    releaseMutex();
 }
 
 //vira para o ponto, e anda em direcao a ele
 void moveTo(float x, float y){
-    if ( (g+gladid)->lockedfor <= 0 ){
-        turnTo(x,y);
-        if (getDist(x,y) < (g+gladid)->spd*timeInterval){
-            (g+gladid)->x = x;
-            (g+gladid)->y = y;
-        }
-        else
-            moveForward();
+    waitUntilReady();
+    waitForMutex();
+    loadStructFromMemory();
+    (g+gladid)->head = getAngle(x,y);
+    (g+gladid)->head = getNormalAngle((g+gladid)->head);
+    if (getDist(x,y) < (g+gladid)->spd*timeInterval){
+        (g+gladid)->x = x;
+        (g+gladid)->y = y;
     }
+    else{
+        float hip = (g+gladid)->spd*timeInterval;
+        float ang = (g+gladid)->head;
+        float dx, dy;
+        calcSidesFromAngleDist(&dx, &dy, hip, ang);
+
+        (g+gladid)->x += dx;
+        (g+gladid)->y -= dy;
+    }
+    preventLeaving();
+    (g+gladid)->lockedfor = timeInterval;
+    actioncode = 1;
+    saveStructToMemory();
+    releaseMutex();
 }
 
 //retorna X do glad
 float getMyX(){
+    waitUntilReady();
     return (g+gladid)->x;
 }
 
 //retorna Y do glad
 float getMyY(){
+    waitUntilReady();
     return (g+gladid)->y;
 }
 
 //atribui em x e y as coordenadas do glad
 void getMyCoords(float *x, float *y){
+    waitUntilReady();
     *x = (g+gladid)->x;
     *y = (g+gladid)->y;
 }
 
 //retorna hp
 int getMyHp(){
+    waitUntilReady();
     return (g+gladid)->hp;
 }
 
 //retorna ap
 int getMyAp(){
+    waitUntilReady();
     return (g+gladid)->ap;
 }
 
 //retorna STR
 int getMySTR(){
+    waitUntilReady();
     return (g+gladid)->STR;
 }
 
 //retorna AGI
 int getMyAGI(){
+    waitUntilReady();
     return (g+gladid)->AGI;
 }
 
 //retorna INT
 int getMyINT(){
+    waitUntilReady();
     return (g+gladid)->INT;
 }
 
 //retorna velocidade
 float getMySpeed(){
+    waitUntilReady();
     return (g+gladid)->spd;
 }
 
@@ -317,27 +350,33 @@ int haveYouDamagedMe(int en){
 
 //ataca inimigo em frente num raio de 180g
 void attackMelee(float x, float y){
-    if ( (g+gladid)->lockedfor <= 0 ){
-        turnTo(x,y);
-        int i;
-        for (i=0 ; i<nglad ; i++){
-            if (i != gladid && (g+i)->hp > 0){
-                float dist = getDist((g+i)->x, (g+i)->y);
-                float ang = getAngle((g+i)->x, (g+i)->y) - (g+gladid)->head;
-                ang = getNormalAngle(ang);
-                if ( dist <= 1 && (ang <= 90 || ang >= 270) ){
-                    (g+i)->hp -= (g+gladid)->dmg;
-                    (g+i)->lasthit = getNormalAngle(getAngleFromAB((g+i)->x, (g+i)->y, (g+gladid)->x, (g+gladid)->y));
-                    setDamagedMe(i, gladid);
-                }
+    waitUntilReady();
+    waitForMutex();
+    loadStructFromMemory();
+    (g+gladid)->head = getAngle(x,y);
+    (g+gladid)->head = getNormalAngle((g+gladid)->head);
+    int i;
+    for (i=0 ; i<nglad ; i++){
+        if (i != gladid && (g+i)->hp > 0){
+            float dist = getDist((g+i)->x, (g+i)->y);
+            float ang = getAngle((g+i)->x, (g+i)->y) - (g+gladid)->head;
+            ang = getNormalAngle(ang);
+            if ( dist <= 1 && (ang <= 90 || ang >= 270) ){
+                (g+i)->hp -= (g+gladid)->dmg;
+                (g+i)->lasthit = getNormalAngle(getAngleFromAB((g+i)->x, (g+i)->y, (g+gladid)->x, (g+gladid)->y));
+                setDamagedMe(i, gladid);
             }
         }
-        (g+gladid)->lockedfor = 1/(g+gladid)->as;
     }
+    (g+gladid)->lockedfor = 1/(g+gladid)->as;
+    actioncode = 2;
+    saveStructToMemory();
+    releaseMutex();
 }
 
 //retorna quantos inimigos o glad enxerga no campo de visao
 int howManyEnemies(){
+    waitUntilReady();
     int i, cont=0;
     for (i=0 ; i<nglad ; i++){
         if (i != gladid && (g+i)->hp > 0){
@@ -352,8 +391,59 @@ int howManyEnemies(){
     return cont;
 }
 
+int getCloseEnemy(float *x, float *y){
+    waitUntilReady();
+    int i, closeri=-1, lowerdist;
+    for (i=0 ; i<nglad ; i++){
+        if (i != gladid && (g+i)->hp > 0){
+            float dist = getDist((g+i)->x, (g+i)->y);
+            float ang = getAngle((g+i)->x, (g+i)->y) - (g+gladid)->head;
+            ang = getNormalAngle(ang);
+            if ( dist <= (g+gladid)->vis && (ang <= (g+gladid)->vrad/2 || ang >= 360-(g+gladid)->vrad/2) ){
+                if (closeri == -1 || dist < lowerdist){
+                    lowerdist = dist;
+                    closeri = i;
+                }
+            }
+        }
+    }
+    if(closeri == -1)
+        return 0;
+    else{
+        *x = (g+closeri)->x;
+        *y = (g+closeri)->y;
+        return 1;
+    }
+}
+
+int getFarEnemy(float *x, float *y){
+    waitUntilReady();
+    int i, fari=-1, higherdist;
+    for (i=0 ; i<nglad ; i++){
+        if (i != gladid && (g+i)->hp > 0){
+            float dist = getDist((g+i)->x, (g+i)->y);
+            float ang = getAngle((g+i)->x, (g+i)->y) - (g+gladid)->head;
+            ang = getNormalAngle(ang);
+            if ( dist <= (g+gladid)->vis && (ang <= (g+gladid)->vrad/2 || ang >= 360-(g+gladid)->vrad/2) ){
+                if (fari == -1 || dist > higherdist){
+                    higherdist = dist;
+                    fari = i;
+                }
+            }
+        }
+    }
+    if(fari == -1)
+        return 0;
+    else{
+        *x = (g+fari)->x;
+        *y = (g+fari)->y;
+        return 1;
+    }
+}
+
 //atribui em x,y as coordenadas do inimigo no campo de visao de menor hp
 int getLowHp(float *x, float *y){
+    waitUntilReady();
     int i, loweri=-1;
     for (i=0 ; i<nglad ; i++){
         if (i != gladid && (g+i)->hp > 0){
@@ -377,6 +467,7 @@ int getLowHp(float *x, float *y){
 
 //atribui em x,y as coordenadas do inimigo no campo de visao de maior hp
 int getHighHp(float *x, float *y){
+    waitUntilReady();
     int i, higheri=-1;
     for (i=0 ; i<nglad ; i++){
         if (i != gladid && (g+i)->hp > 0){
@@ -399,6 +490,7 @@ int getHighHp(float *x, float *y){
 }
 
 int getEnemyHealth(float x, float y){
+    waitUntilReady();
     int i;
     for (i=0 ; i<nglad ; i++){
         if ( (g+i)->x == x && (g+i)->y == y )
@@ -420,6 +512,7 @@ int getEnemyHealth(float x, float y){
 }
 
 int areYouAWarrior(float x, float y){
+    waitUntilReady();
     int i;
     for (i=0 ; i<nglad ; i++){
         if ( (g+i)->x == x && (g+i)->y == y )
@@ -436,6 +529,7 @@ int areYouAWarrior(float x, float y){
 }
 
 int areYouARogue(float x, float y){
+    waitUntilReady();
     int i;
     for (i=0 ; i<nglad ; i++){
         if ( (g+i)->x == x && (g+i)->y == y )
@@ -452,6 +546,7 @@ int areYouARogue(float x, float y){
 }
 
 int areYouAMage(float x, float y){
+    waitUntilReady();
     int i;
     for (i=0 ; i<nglad ; i++){
         if ( (g+i)->x == x && (g+i)->y == y )
@@ -468,6 +563,7 @@ int areYouAMage(float x, float y){
 }
 
 int doYouSeeMe(float x, float y){
+    waitUntilReady();
     int i;
     for (i=0 ; i<nglad ; i++){
         if ( (g+i)->x == x && (g+i)->y == y )
@@ -537,13 +633,15 @@ void removeProjectile(struct projectile *a){
 void updateProjectiles(){
     int j, k;
     float hitbox = 1;
-    float travelunit = 3;
-    float speed = 30;
+    float travelunit = 3; //em quantas etapas quebra 1 passo
+    float speed = 30; //quantos timeInterval ele anda
     struct projectile *a = p;
     int i=0;
     while (a != NULL){
         i++;
         int hitglad = 0;
+        waitForMutex();
+        loadStructFromMemory();
         for (k=0 ; k < speed * timeInterval * travelunit ; k++){
             a->x += a->spdx / travelunit;
             a->y += a->spdy / travelunit;
@@ -570,6 +668,8 @@ void updateProjectiles(){
             if (hitglad)
                 break;
         }
+        saveStructToMemory();
+        releaseMutex();
         if (a->dist >= 15 || hitglad){
             struct projectile *t = a->next;
             removeProjectile(a);
@@ -581,21 +681,28 @@ void updateProjectiles(){
     }
 }
 
-void attackRanged(float x, float y){
-    if ( (g+gladid)->lockedfor <= 0 ){
-        turnTo(x,y);
-        float spdx, spdy;
-        calcSidesFromAngleDist(&spdx, &spdy, 1, (g+gladid)->head);
-        launchProjectile((g+gladid)->x, (g+gladid)->y, (g+gladid)->dmg, spdx, -spdy, PROJECTILE_TYPE_ATTACK);
-        (g+gladid)->lockedfor = 1/(g+gladid)->as;
-    }
+int attackRanged(float x, float y){
+    waitUntilReady();
+    waitForMutex();
+    loadStructFromMemory();
+    (g+gladid)->head = getAngle(x,y);
+    (g+gladid)->head = getNormalAngle((g+gladid)->head);
+    float spdx, spdy;
+    calcSidesFromAngleDist(&spdx, &spdy, 1, (g+gladid)->head);
+    launchProjectile((g+gladid)->x, (g+gladid)->y, (g+gladid)->dmg, spdx, -spdy, PROJECTILE_TYPE_ATTACK);
+    (g+gladid)->lockedfor = 1/(g+gladid)->as;
+    actioncode = 3;
+    saveStructToMemory();
+    releaseMutex();
 }
 
 float whereThatCameFrom(){
+    waitUntilReady();
     return (g+gladid)->lasthit;
 }
 
 int lockOnTarget(float x, float y){
+    waitUntilReady();
     int i;
     for (i=0 ; i<nglad ; i++){
         if ( (g+i)->x == x && (g+i)->y == y ){
@@ -607,6 +714,7 @@ int lockOnTarget(float x, float y){
 }
 
 int isLockedTargetVisible(){
+    waitUntilReady();
     if ( (g+gladid)->targetlocked == -1 )
         return 0;
     int target = (g+gladid)->targetlocked;
@@ -626,6 +734,7 @@ int isLockedTargetVisible(){
 }
 
 void getLockedTargetCoords(float *x, float *y){
+    waitUntilReady();
     if ( isLockedTargetVisible() ){
         int target = (g+gladid)->targetlocked;
         *x = (g+target)->x;
@@ -634,9 +743,18 @@ void getLockedTargetCoords(float *x, float *y){
 }
 
 float getLockedTargetSpeed(){
+    waitUntilReady();
     if (!isLockedTargetVisible())
         return 0;
     int target = (g+gladid)->targetlocked;
     return (g+target)->spd;
+}
+
+float getLockedTargetHeading(){
+    waitUntilReady();
+    if (!isLockedTargetVisible())
+        return 0;
+    int target = (g+gladid)->targetlocked;
+    return (g+target)->head;
 }
 

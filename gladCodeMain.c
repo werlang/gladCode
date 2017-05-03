@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "GladCodeStruct.c"
+#include "GladCodeSMem.c"
 #include "gladCodeRuntimeRender.c"
 
 struct params {
@@ -27,34 +29,80 @@ DWORD WINAPI thread(LPVOID p){
     return 0;
 }
 
+void sortOutput(){
+    FILE *arq = fopen("output.txt","r");
+    if (arq != NULL){
+        char **outmat = NULL;
+        char buffer[500];
+        int lines = 0;
+
+        while (!feof(arq)){
+            fgets(buffer, 499, arq);
+            if (!feof(arq)){
+                if (outmat == NULL)
+                    outmat = (char**)malloc(sizeof(char*));
+                else
+                    outmat = (char**)realloc(outmat, sizeof(char*) * (lines+1) );
+                outmat[lines] = (char*)malloc(sizeof(char) * (strlen(buffer)+1) );
+                strcpy(outmat[lines], buffer);
+                lines++;
+            }
+        }
+        fclose(arq);
+
+        int troca, i;
+        char strval[7], *pos;
+        float val1, val2;
+        char temp[500];
+        do{
+            troca = 0;
+            for (i=0 ; i<lines-1 ; i++){
+                pos = strstr(outmat[i], "|");
+                strncpy(strval, outmat[i], sizeof(char) * (pos - outmat[i]) );
+                val1 = atof(strval);
+                pos = strstr(outmat[i], "|");
+                strncpy(strval, outmat[i+1], sizeof(char) * (pos - outmat[i]) );
+                val2 = atof(strval);
+                if (val1 > val2){
+                    strcpy(temp, outmat[i]);
+                    strcpy(outmat[i], outmat[i+1]);
+                    strcpy(outmat[i+1], temp);
+                    troca=1;
+                }
+            }
+        } while(troca != 0);
+
+        arq = fopen("output.txt","w");
+        for (i=0 ; i<lines ; i++){
+            fputs(outmat[i], arq);
+        }
+        fclose(arq);
+    }
+}
+
 int main(){
     DWORD dwThreadId;
-    HANDLE hThread;
 
-    FILE *arq;
-    arq = fopen("struct", "rb");
+    FILE *arq = fopen("output.txt","r");
     if (arq != NULL){
         fclose(arq);
-        system("del struct");
+        system("del output.txt");
     }
-    arq = fopen("lock", "rb");
-    if (arq != NULL){
-        fclose(arq);
-        system("del lock");
-    }
-    arq = fopen("output.txt", "w");
-    fclose(arq);
-    int n;
-    scanf("%i",&n);
-    struct params p[n];
+    scanf("%i",&nglad);
+    struct params p[nglad];
+    HANDLE hThread[nglad];
+
+    startStructSharedMemory(); //reserva memoria que sera compartilhada
+    startCounterSharedMemory();
+
     int i;
-    for (i=0 ; i<n ; i++){
+    for (i=0 ; i<nglad ; i++){
         char input[100];
         scanf("%s",p[i].code);
         p[i].id = i;
-        p[i].n = n;
+        p[i].n = nglad;
 
-        hThread = CreateThread(
+        hThread[i] = CreateThread(
             NULL, // default security attributes
             0, // use default stack size
             thread, // thread function
@@ -63,27 +111,28 @@ int main(){
             &dwThreadId); // returns the thread identifier
 
         // Check the return value for success. If something wrong...
-        if (hThread == NULL)
+        if (hThread[i] == NULL)
             printf("CreateThread() failed, error: %d.\n", GetLastError());
     }
 
+
     printf("Starting render...\n");
-    if (!renderInit(n)){
+
+    if (!renderInit()){
         return -1;
     }
     printf("Render started.\n");
     renderLoop();
 
 
-    arq = fopen("struct", "rb");
-    if (arq != NULL){
-        fclose(arq);
-        system("del struct");
-    }
-    arq = fopen("lock", "rb");
-    if (arq != NULL){
-        fclose(arq);
-        system("del lock");
-    }
+    WaitForMultipleObjects(
+        nglad,
+        hThread,
+        1,
+        INFINITE);
+
+    sortOutput();
+    printf("All threads stopped. Program terminate.\n");
+
     return 0;
 }

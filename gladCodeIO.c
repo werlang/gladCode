@@ -4,19 +4,21 @@
 #include<time.h>
 #include<math.h>
 #include<Windows.h>
+#include"GladCodeStruct.c"
+#include "GladCodeSMem.c"
 #include"GladCodeAPI.c"
 
-void startStructFromFile(){
-    g = (struct gladiador*)malloc(sizeof(struct gladiador)*(nglad));
+int endsim = 0;
+char *outString = NULL;
+
+void startStructFromMemory(){
+    int size = sizeof(struct gladiador) * nglad;
+    g = (struct gladiador*)malloc(size);
     int i;
     for (i=0 ; i<nglad ; i++)
         (g+i)->lvl = -1;
 
-    FILE *arq;
-    arq = fopen("struct","rb");
-    if (arq != NULL)
-        fread(g, sizeof(struct gladiador), nglad, arq);
-    fclose(arq);
+    g = (struct gladiador*)readFromSharedMemory(size);
 
     setup();
     if (!checkSetup()){
@@ -24,77 +26,48 @@ void startStructFromFile(){
         return;
     }
 
-    arq = fopen("struct","wb");
-    fwrite(g, sizeof(struct gladiador), nglad, arq);
-    fclose(arq);
+    writeOnSharedMemory(g, size);
 
     printf("%s (thread %i) setup complete.\n",(g+gladid)->name, gladid);
 }
 
-int setupReady(){
-    FILE *arq;
-    int ready = 1, i;
-    arq = fopen("struct","rb");
-    fread(g, sizeof(struct gladiador), nglad, arq);
-    fclose(arq);
-    for (i=0 ; i<nglad ; i++){
-        if ( (g+i)->lvl != 1 )
-            return 0;
+void waitForSetup(){
+    int size = sizeof(struct gladiador) * nglad;
+    int i, ready = 0, message = 0;
+    while (!ready){
+        if (g != NULL)
+            free(g);
+        g = (struct gladiador*)readFromSharedMemory(size);
+        for (i=0 ; i<nglad ; i++){
+            if ( (g+i)->lvl != 1 ){
+                if (!message){
+                    printf("%s (thread %i) is ready to fight...\n", (g+gladid)->name, gladid);
+                    message = 1;
+                }
+                break;
+            }
+        }
+        if (i==nglad)
+            ready = 1;
     }
-    return 1;
+    printf("%s (thread %i) entered the arena.\n", (g+gladid)->name, gladid);
 }
 
-void loadStructFromFile(){
-    FILE *arq = fopen("struct","rb");
-    fread(g, sizeof(struct gladiador), nglad, arq);
-    fclose(arq);
-}
-
-void saveStructToFile(){
-    FILE *arq = fopen("struct","wb");
-    fwrite(g, sizeof(struct gladiador), nglad, arq);
-    fclose(arq);
-}
-
-void printStruct(){
+void printOutput(){
     FILE *arq = fopen("output.txt","a");
-    char str[200];
-    sprintf(str, "%i %s X:%.1f Y:%.1f H:%.1f HP:%i AP:%i\n", gladid, (g+gladid)->name, (g+gladid)->x, (g+gladid)->y, (g+gladid)->head, (g+gladid)->hp, (g+gladid)->ap);
-    fputs(str, arq);
-    //printf(str);
+    if (arq == NULL){
+        arq = fopen("output.txt","w");
+        fclose(arq);
+        arq = fopen("output.txt","a");
+    }
+    fputs(outString, arq);
     fclose(arq);
 }
-
-void lockFile(){
-    FILE *arq = fopen("lock","wb");
-    int value = 1;
-    fwrite(&value, sizeof(int), 1, arq);
-    fclose(arq);
-}
-
-void unlockFile(){
-    FILE *arq = fopen("lock","wb");
-    int value = 0;
-    fwrite(&value, sizeof(int), 1, arq);
-    fclose(arq);
-}
-
-int isFileLocked(){
-    FILE *arq = fopen("lock","rb");
-    if (arq == NULL)
-        return 0;
-    int value;
-    fread(&value, sizeof(int), 1, arq);
-    fclose(arq);
-    return value;
-}
+    HANDLE hThread;
 
 void updateTime(){
-    if ((g+gladid)->lockedfor > 0)
-        (g+gladid)->lockedfor -= timeInterval;
-
+    int i;
     if ((g+gladid)->hp <= 0){
-        int i;
         for (i=0 ; i<nglad ; i++){
             if (haveYouDamagedMe(i)){
                 (g+i)->lvl++;
@@ -108,7 +81,49 @@ void updateTime(){
                 //printf("%i %i %i",(g+i)->STR, (g+i)->AGI, (g+i)->INT);
             }
         }
+        endsim = 1;
     }
+    updateSimCounter(gladid, timeInterval);
+    double cont[nglad], lower;
+    do{
+        getAllSimCounters(cont);
+        int alive = 0;
+        lower = -1;
+        for (i=0 ; i<nglad ; i++){
+            if ( (g+i)->hp > 0 && i != gladid ){
+                alive++;
+                if ( lower == -1 || cont[i] < lower )
+                    lower = cont[i];
+            }
+        }
+        if (!alive)
+            endsim = 1;
+    }while (cont[gladid] > lower && !endsim);
+
+    waitForMutex();
+    loadStructFromMemory();
+    if ((g+gladid)->lockedfor > 0)
+        (g+gladid)->lockedfor -= timeInterval;
+    saveStructToMemory();
+    releaseMutex();
+}
+
+void recordSteps(){
+    double simtime = getSimCounter(gladid);
+    char buffer[500];
+    //time|thread num|nome|x|y|heading|lockedfor|hp|ap|action code
+    sprintf(buffer, "%.1lf|%i|%s|%.1f|%.1f|%.1f|%.1f|%i|%i|%i\n", simtime, gladid, (g+gladid)->name, (g+gladid)->x, (g+gladid)->y, (g+gladid)->head, (g+gladid)->lockedfor, (g+gladid)->hp, (g+gladid)->ap, actioncode);
+    printf(buffer);
+    if (outString == NULL){
+        outString = (char*)malloc(sizeof(char) * (strlen(buffer)+1) );
+        strcpy(outString, buffer);
+    }
+    else{
+        int size = sizeof(char) * (strlen(outString));
+        outString = (char*)realloc(outString, size + sizeof(char) * (strlen(buffer)+1) );
+        strcat(outString, buffer);
+    }
+
 }
 
 int main(int argc, char *argv[]){
@@ -116,21 +131,33 @@ int main(int argc, char *argv[]){
 
     gladid = atoi(argv[1]);
     nglad = atoi(argv[2]);
-    startStructFromFile();
-    while(!setupReady());
 
-    while(!kbhit() && (g+gladid)->hp > 0){
-        while(isFileLocked());
-        lockFile();
-        loadStructFromFile();
+    startMutex();
+
+    waitForMutex();
+    startStructFromMemory();
+    releaseMutex();
+
+    waitForSetup();
+
+    while(!kbhit() && !endsim){
+        actioncode = 0;
         loop();
         updateProjectiles();
         updateTime();
-        saveStructToFile();
-        unlockFile();
-        printStruct();
-        //printf("%i: %i %.1f| ",gladid, (g+gladid)->hp, (g+gladid)->lockedfor);
+        recordSteps();
     }
-    if ((g+gladid)->hp <= 0)
-        printf("%s (thread %i) died\n",(g+gladid)->name, gladid);
+    if (endsim){
+        waitForMutex();
+        if ((g+gladid)->hp <= 0)
+            printf("%s (thread %i) died\n",(g+gladid)->name, gladid);
+        else
+            printf("Winner: %s (thread %i)\n", (g+gladid)->name, gladid);
+        printOutput();
+        releaseMutex();
+    }
 }
+
+
+
+
