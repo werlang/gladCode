@@ -3,7 +3,7 @@ Batalha de agentes virtuais inteligentes usando temática fantasia medieval
 
 Regras
 Arena 25x25 p(passos)  
-Intervalo mínimo de tempo 0.1s  
+Intervalo de tempo 0.1s  
 Cada mestre(jogador) faz upload do código de três gladiadores. A cada rodada, um gladiador é escolhido por cada mestre, e eles combatem até que reste somente um sobrevivente. A cada nova rodada, o mestre deve escolher um novo gladiador, levando em consideração que os que já morreram nas rodadas anteriores não podem mais ser escolhidos. Um gladiador sobrevivente de outra rodada quando escolhido para uma nova rodada tem metade de seu hp recuperado. Quando houver somente um gladiador vivo, o torneio termina, e o mestre dono deste gladiador é o vencedor. As próximas colocações são definidas a partir da ordem das mortes dos últimos gladidores de cada mestre.
 Cada vez que algum gladiador morrer, todos que desferiram algum dano sobem de nível e ganham um ponto extra em um atributo a sua escolha, definido pela função upgradeXXX(). O limite continua sendo 10 pontos em cada atributo. Caso a função upgrade não tenha sido chamada nenhuma vez, ou o atributo já esteja no máximo, o ponto é perdido.
 
@@ -61,6 +61,8 @@ Sentidos
 - int howManyEnemies() - retorna quantos gladiadores existem no campo de visão
 - bool getLowHp(&x,&y) - atribui as coordenadas do alvo de menor hp no seu campo de visão e retorna true, ou false caso não haja nenhum alvo no ponto
 - bool getHighHp(&x,&y) - atribui as coordenadas do alvo de maior hp no seu campo de visão e retorna true, ou false caso não haja nenhum alvo no ponto
+- bool getCloseEnemy(&x,&y) - atribui as coordenadas do alvo mais próximo no seu campo de visão e retorna true, ou false caso não haja nenhum alvo no ponto
+- bool getFarEnemy(&x,&y) - atribui as coordenadas do alvo mais longe no seu campo de visão e retorna true, ou false caso não haja nenhum alvo no ponto
 - int getEnemyHealth(x,y) - retorna o estado de saúde do alvo no ponto (valores de 1 até 4), ou 0 caso não haja alvo no ponto
 - int getMyHp() - retorna o hp
 - int getMyAp() - retorna o ap
@@ -75,6 +77,8 @@ Sentidos
 - bool lockOnTarget(x,y) - fixa a atenção no alvo no ponto. false se nao tiver alvo
 - bool isLockedTargetVisible() retorna true caso alvo fixado esteja no campo de visão
 - getLockedTargetCoords(&x,&y) - atribui as coordenadas do alvo fixado
+- float getLockedTargetSpeed() - retorna a velocidade do alvo fixado
+- float getLockedTargetHeading() - retorna a direção do alvo fixado
 
 Habilidades
 - fireball(x,y) - lança fireball no ponto
@@ -100,7 +104,7 @@ Métodos do setup
 - setSTR(n) - altera a quantidade de pontos de STR que o gladiador possui. Não deve ultrapassar 10, a soma de STR, INT e AGI não deve ultrapassar 15
 - setAGI(n) - altera a quantidade de pontos de AGI que o gladiador possui
 - setINT(n) - altera a quantidade de pontos de INT que o gladiador possui
-upgradeSTR(), upgradeAGI(), upgradeINT() - pode ser chamado aqui também para definir prioridade inicial
+- upgradeSTR(), upgradeAGI(), upgradeINT() - pode ser chamado aqui também para definir prioridade inicial
 
 Código
 
