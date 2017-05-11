@@ -10,6 +10,7 @@ Cada vez que algum gladiador morrer, todos que desferiram algum dano sobem de n�
 Características fixas  
 Vision radius: 60g - arco de visão do gladiador  
 Vision distance: 9p - distancia máxima que o gladiador enxerga  
+AP recovery: 5% maxAP/s
 
 Atributos   
 Cada gladiador possui atributos que definem no que eles são melhores. São STR (força), AGI (agilidade) e INT (intelecto).  
@@ -35,8 +36,8 @@ Fireball | 20 | Causa dano INT num ponto central de impacto e INT decrescendo co
 Teleport | 30 | Teleporta para ponto. Distancia máxima  5-15 p (INT)
 Charge | 10 | Move em direção ao alvo com 3x speed. Ao acertar o alvo, causa STR dano e slow 0-50% (STR) por 5s
 Block | 20 | Reduz dano levado no raio de visão em 25-50% (STR) por 5s
-Assassinate | 10 | Causa dano do ataque em um alvo. Caso o alvo não esteja lhe enxergando causa um adicional de AGI
-Camouflage   |25 | Torna-se invisível por 1-2s (AGI)
+Assassinate | 10 | Faz um ataque a distancia contra o alvo. Caso o alvo não esteja lhe enxergando o projétil causa um adicional de AGI. Também atordoa o alvo por 0-1s (AGI) caso distancia seja até 2p.
+Camouflage   |30 | Torna-se invisível por 1-4s (AGI), ou até realizar um ataque ou lançar uma habilidade.
 
 Métodos
 
@@ -83,15 +84,16 @@ Sentidos
 Habilidades
 - fireball(x,y) - lança fireball no ponto
 - teleport(x,y) - teleporta para o ponto
-- charge(x,y) - usa charge no alvo que está no ponto
+- charge() - usa charge no alvo fixado
 - block() - usa block
-- assassinate(x,y) - usa assassinate no alvo que está no ponto
+- assassinate(x,y) - usa assassinate no ponto
 - camouflage() - usa camouflage
+- float getBlockTimeLeft() - retorna o tempo restante da habilidade block
+- float getCamouflageTimeLeft() - retorna o tempo restante da habilidade camouflage
 
 Matemática
 - float getDist(x,y) - retorna a distância até o ponto
 - float getAngle(x,y) - retorna o angulo até o ponto
-- float getLockedTargetSpeed() - retorna a velocidade do alvo fixado
 
 Melhorias
 - upgradeSTR() - melhora atributo STR na próxima vez que passar de nível
@@ -148,9 +150,10 @@ loop(){
 Arquivos:
 
 gladCodeMain.c - Arquivo principal. Recebe como argumento o número de gladiadores, e o nome do arquivo fonte de cada um. Este programa chama uma thread para cada gladiador.  
-c1.c, c2.c, c3.c - Arquivos fontes de exemplo para cada gladiador. Possuem as funções setup, loop e um include para gladCodeIO.c
-gladCodeIO.c - Programa que gerencia o arquivo que contém as informações gladiadores, a tranca para evitar condições de disputa. Possui também o main que chama setup e loop.  
-gladCodeAPI.c - Cada função disponível para o programador dos gladiadores está contida aqui, bem como outras auxiliares.  
+c1.c, c2.c, etc - Arquivos fontes de exemplo para cada gladiador. Possuem as funções setup, loop e um include para gladCodeAPI.c
+gladCodeCore.c - Código que será executado por cada thread. Possui o main que chama setup e loop, bem como a maioria das funções que fazem parte da simulação.
+gladCodeAPI.c - Cada função disponível para o programador dos gladiadores está contida aqui.  
 gladCodeRuntimeRender.c - Responsável por renderizar a batalha enquanto está sendo processada. Utiliza a biblioteca Allegro para isso. É um arquivo provisório, só para dar ideia do que está acontecendo enquanto o programa está correndo. A renderização fo projeto será feita baseada num arquivo texto de saída, futuramente.  
-gladCodeSMem.c - Possuem as funções responsáveis por manipular a memória mapeada e o mutex.  
-gladCodeStruct.c - Possui a definição da struct e o protótipo de algumas funções.  
+gladCodeSMem.c - Possuem as funções responsáveis por manipular a memória compartilhada e o mutex.  
+gladCodeGlobals.c - Possui a definição da struct, variáveis globais e o protótipo de algumas funções.  
+output1.txt, output2.txt, etc - Arquivos com exexmplos de resultados da simulação.
