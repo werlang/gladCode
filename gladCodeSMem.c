@@ -10,7 +10,7 @@ char fmName[50]="StructFileMapObject";
 char ctName[50]="CounterFileMapObject";
 HANDLE ghMutex;
 
-void startSharedMemory(int size, char *name){
+int startSharedMemory(int size, char *name){
     HANDLE hMapFile;
 
     hMapFile = CreateFileMapping(
@@ -21,20 +21,24 @@ void startSharedMemory(int size, char *name){
         size,                // maximum object size (low-order DWORD)
         name);                 // name of mapping object
 
-    if (hMapFile == NULL){
-        printf("Could not create file mapping object (%d).\n", GetLastError());
-        return;
-    }
+    if (hMapFile == NULL)
+        return 0;
     else
-        printf("Filemap created.\n", GetLastError());
+        return 1;
 }
 
 void startStructSharedMemory(){
-    startSharedMemory(sizeof(struct gladiador) * nglad, fmName);
+    if (startSharedMemory(sizeof(struct gladiador) * nglad, fmName))
+        printf("Struct filemap created.\n");
+    else
+        printf("Could not create file mapping object (%d).\n", GetLastError());
 }
 
 void startCounterSharedMemory(){
-    startSharedMemory(sizeof(double) * nglad, ctName);
+    if (startSharedMemory(sizeof(double) * nglad, ctName))
+        printf("Simtime filemap created.\n");
+    else
+        printf("Could not create file mapping object (%d).\n", GetLastError());
 }
 
 void writeOnSharedMemory(void *info, int size){
@@ -180,11 +184,14 @@ void *readFromSharedMemory(int size){
     HANDLE hMapFile;
     void *pBuf, *result;
 
+    //printf("%i 0\n",gladid);
+
     hMapFile = OpenFileMapping(
         FILE_MAP_ALL_ACCESS,   // read/write access
         FALSE,                 // do not inherit the name
         fmName);               // name of mapping object
 
+    //printf("%i 1\n",gladid);
     if (hMapFile == NULL){
         printf("Could not open file mapping object (%d).\n",GetLastError());
         return;
@@ -196,6 +203,7 @@ void *readFromSharedMemory(int size){
         0,
         0);
 
+    //printf("%i 2\n",gladid);
     if (pBuf == NULL){
         _tprintf("Could not map view of file (%d).\n", GetLastError());
         CloseHandle(hMapFile);
@@ -204,6 +212,7 @@ void *readFromSharedMemory(int size){
 
     result = malloc(size);
     memcpy ( result, pBuf, size );
+    //printf("%i 3\n",gladid);
 
     UnmapViewOfFile(pBuf);
     CloseHandle(hMapFile);
@@ -213,8 +222,13 @@ void *readFromSharedMemory(int size){
 
 void loadStructFromMemory(){
     int size = sizeof(struct gladiador) * nglad;
-    if (g != NULL)
+    //printf("%i vumve\n",gladid);
+    if (g != NULL){
+        //printf("%i nao null\n",gladid);
         free(g);
+        //printf("%i freezou\n",gladid);
+    }
+    //printf("%i fora do if\n",gladid);
     g = (struct gladiador*)readFromSharedMemory(size);
 }
 
@@ -223,7 +237,6 @@ void saveStructToMemory(){
     writeOnSharedMemory(g, size);
 }
 
-
 void startMutex(){
     ghMutex = CreateMutex(
         NULL,              // default security attributes
@@ -231,7 +244,9 @@ void startMutex(){
         mtName);             // mutex name
 
     if (ghMutex == NULL)
-        printf("CreateMutex error: %d\n", GetLastError());
+        printf("CreateMutex error: %d\n", (int)GetLastError());
+    else
+        printf("Mutex on %i started\n", gladid);
 }
 
 int waitForMutex(){

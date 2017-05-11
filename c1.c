@@ -1,12 +1,12 @@
-#include "gladCodeIO.c"
+#include "gladCodeAPI.c"
 
 setup(){
     registerGlad();
     setName("Tutorius");
-    setSTR(7);
-    setAGI(5);
+    setSTR(5);
+    setAGI(7);
     setINT(3);
-    upgradeSTR();
+    upgradeAGI();
 }
 
 loop(){
@@ -20,10 +20,9 @@ loop(){
         float x,y;
         getLowHp(&x,&y);
         lockOnTarget(x, y);
-        //printf("%.2f ",getLockedTargetSpeed());
-        //printf("%i ",doYouSeeMe(x,y));
-        if (getDist(x,y) <= 10)
+        if (getDist(x,y) <= 10){
             attackRanged(x,y);
+        }
         else
             moveTo(x,y);
     }

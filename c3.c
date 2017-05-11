@@ -1,11 +1,11 @@
-#include "gladCodeIO.c"
+#include "gladCodeAPI.c"
 
 setup(){
     registerGlad();
-    setName("Testee");
-    setSTR(4);
+    setName("Brutus");
+    setSTR(7);
     setAGI(5);
-    setINT(6);
+    setINT(3);
 }
 
 loop(){
@@ -13,22 +13,19 @@ loop(){
     if ( !isLockedTargetVisible() ){
         if ( howManyEnemies() > 0 ){
             getLowHp(&x, &y);
-            lockOnTarget(x, y);
+            lockOnTarget(x,y);
+            if (doYouSeeMe(x,y) && getBlockTimeLeft() <= 0)
+                block();
+            charge();
         }
         else{
-            if (getMyX() < 5)
-                turnTo(25, getMyY());
-            if (getMyX() > 20)
-                turnTo(0, getMyY());
-            if (getMyY() < 5)
-                turnTo(getMyX(), 25);
-            if (getMyY() > 20)
-                turnTo(getMyX(), 0);
-            moveForward();
+            turn(60);
         }
     }
     else{
         getLockedTargetCoords(&x,&y);
-        moveTo(x,y);
+        if (doYouSeeMe(x,y) && getBlockTimeLeft() <= 0)
+            block();
+        charge();
     }
 }

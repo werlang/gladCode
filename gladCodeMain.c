@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "GladCodeStruct.c"
+#include "GladCodeGlobals.c"
 #include "GladCodeSMem.c"
 #include "gladCodeRuntimeRender.c"
 
@@ -38,20 +38,20 @@ void sortOutput(){
 
         while (!feof(arq)){
             fgets(buffer, 499, arq);
+            //printf("%s.\n",buffer);
             if (!feof(arq)){
                 if (outmat == NULL)
                     outmat = (char**)malloc(sizeof(char*));
                 else
                     outmat = (char**)realloc(outmat, sizeof(char*) * (lines+1) );
-                outmat[lines] = (char*)malloc(sizeof(char) * (strlen(buffer)+1) );
+                outmat[lines] = (char*)malloc(sizeof(char) * 500 );
                 strcpy(outmat[lines], buffer);
                 lines++;
             }
         }
         fclose(arq);
-
         int troca, i;
-        char strval[7], *pos;
+        char strval[500], *pos;
         float val1, val2;
         char temp[500];
         do{
@@ -59,10 +59,14 @@ void sortOutput(){
             for (i=0 ; i<lines-1 ; i++){
                 pos = strstr(outmat[i], "|");
                 strncpy(strval, outmat[i], sizeof(char) * (pos - outmat[i]) );
+                strval[pos - outmat[i]] = '\0';
                 val1 = atof(strval);
-                pos = strstr(outmat[i], "|");
-                strncpy(strval, outmat[i+1], sizeof(char) * (pos - outmat[i]) );
+
+                pos = strstr(outmat[i+1], "|");
+                strncpy(strval, outmat[i+1], sizeof(char) * (pos - outmat[i+1]) );
+                strval[pos - outmat[i+1]] = '\0';
                 val2 = atof(strval);
+
                 if (val1 > val2){
                     strcpy(temp, outmat[i]);
                     strcpy(outmat[i], outmat[i+1]);
@@ -95,6 +99,14 @@ int main(){
     startStructSharedMemory(); //reserva memoria que sera compartilhada
     startCounterSharedMemory();
 
+
+    printf("Starting render... ");
+    if (!renderInit()){
+        return -1;
+    }
+    printf("Done.\n");
+
+
     int i;
     for (i=0 ; i<nglad ; i++){
         char input[100];
@@ -112,18 +124,10 @@ int main(){
 
         // Check the return value for success. If something wrong...
         if (hThread[i] == NULL)
-            printf("CreateThread() failed, error: %d.\n", GetLastError());
+            printf("CreateThread() failed, error: %i.\n", (int)GetLastError());
     }
 
-
-    printf("Starting render...\n");
-
-    if (!renderInit()){
-        return -1;
-    }
-    printf("Render started.\n");
     renderLoop();
-
 
     WaitForMultipleObjects(
         nglad,
@@ -131,8 +135,10 @@ int main(){
         1,
         INFINITE);
 
+    printf("All threads closed.\n");
+    printf("Sorting output file...  ");
     sortOutput();
-    printf("All threads stopped. Program terminate.\n");
+    printf("Done.\nProgram terminate.\n");
 
     return 0;
 }

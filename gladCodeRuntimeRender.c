@@ -4,9 +4,6 @@
 #include <math.h>
 
 float screenRate = 25;
-float screenW = 25;
-float screenH = 25;
-float timeInterval = 0.01;
 
 ALLEGRO_DISPLAY *janela = NULL;
 ALLEGRO_EVENT_QUEUE *fila_eventos = NULL;
@@ -19,8 +16,6 @@ void error_msg(char *text){
 }
 
 int renderInit(){
-    g = (struct gladiador*)malloc(sizeof(struct gladiador)*(nglad));
-
     if (!al_init()){
         error_msg("Falha ao inicializar a Allegro");
         return 0;
