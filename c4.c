@@ -9,23 +9,43 @@ setup(){
     upgradeINT();
 }
 
+int hpant = 1000;
+int flip=0;
+
 loop(){
-    if (getMyX() != 12 || getMyY() != 12){
-        if (getMyAp() >= 30){
-            teleport(12,12);
+    if (howManyEnemies() == 0){
+        if (getMyHp() < hpant){
+            hpant = getMyHp();
+            turnToHeading(whereThatCameFrom());
         }
         else{
-            moveTo(12, 12);
+            if (flip)
+                moveTo(25,25);
+            else
+                moveTo(0,0);
+            if ((getMyX() == 0 && getMyY() == 0) || (getMyX() == 25 && getMyY() == 25) )
+                flip = (flip+1)%2;
         }
     }
     else{
         float x,y;
-        if (getLowHp(&x,&y)){
-            if (getMyAp() >= 20){
-                fireball(x,y);
-            }
+        if (getCloseEnemy(&x,&y)){
+            if (getDist(x,y) < 2.5)
+                if (getDist(0,0) > 10 && getMyAp() >= 30)
+                    teleport(0,0);
+                else if  (getDist(25,25) > 10 && getMyAp() >= 30)
+                    teleport(25,25);
+                else{
+                    moveBackwards();
+                }
             else{
-                attackRanged(x,y);
+                printf("%.1f\n",getDist(x,y));
+                if (getMyAp() >= 20){
+                    fireball(x,y);
+                }
+                else{
+                    attackRanged(x,y);
+                }
             }
         }
         else{

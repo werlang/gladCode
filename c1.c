@@ -9,7 +9,13 @@ setup(){
     upgradeAGI();
 }
 
+int hpant = 1000;
+
 loop(){
+    if (getMyHp() < hpant){
+        hpant = getMyHp();
+        turnToHeading(whereThatCameFrom());
+    }
     if (howManyEnemies() == 0){
         moveForward();
         if (getMyX() > 20 || getMyX() < 5 || getMyY() > 20 || getMyY() < 5){

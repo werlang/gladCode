@@ -9,7 +9,14 @@ setup(){
     upgradeAGI();
 }
 
+int hpant = 1000;
+
 loop(){
+    if (getMyHp() < hpant){
+        hpant = getMyHp();
+        turnToHeading(whereThatCameFrom());
+        printf("%.1f\n",whereThatCameFrom());
+    }
     if (howManyEnemies() == 0){
         moveForward();
         if (getMyX() > 20 || getMyX() < 5 || getMyY() > 20 || getMyY() < 5){
@@ -17,16 +24,16 @@ loop(){
         }
     }
     else{
-        if (getCamouflageTimeLeft() <= 0 && getMyAp() >= 25)
-            camouflage();
+        float x,y;
+        getLowHp(&x,&y);
+        lockOnTarget(x, y);
+        if (getCamouflageTimeLeft() <= 0 && getMyAp() >= 35)
+            ambush();
         else{
-            float x,y;
-            getLowHp(&x,&y);
-            lockOnTarget(x, y);
-            if (getDist(x,y) > 2)
+            if (getDist(x,y) > 2 && getMyAp() >= 15)
                 moveTo(x,y);
-            else if (getMyAp() >= 10)
-                assassinate(x,y);
+            else if (getMyAp() >= 15)
+                assassinate();
             else
                 attackRanged(x,y);
         }
