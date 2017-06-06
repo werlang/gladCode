@@ -10,7 +10,7 @@ Cada vez que algum gladiador morrer, todos que desferiram algum dano sobem de n�
 Características fixas  
 Vision radius: 60g - arco de visão do gladiador  
 Vision distance: 9p - distancia máxima que o gladiador enxerga  
-AP recovery: 5% maxAP/s
+AP recovery: 3% maxAP/s
 
 Atributos   
 Cada gladiador possui atributos que definem no que eles são melhores. São STR (força), AGI (agilidade) e INT (intelecto).  
@@ -20,30 +20,31 @@ Cada ponto em cada atributo modifica certas características, descritas a seguir
 
 STR
 Damage: 5-15 hp (1 str = 1 damage)
-Hit Points: 50-150 hp (1 str = 10 hp)
+Hit Points: 100-300 hp (1 str = 20 hp)
 
 AGI
 Attack speed: 0.5-1.5 att/s (1 agi = 0.1 as)
 Movement speed: 1-2 p/s (1 agi = 0.1 speed)
 
 INT
-Ability Points: 50-150 ap (1 int = 10 ap)
+Ability Points: 100-300 ap (1 int = 20 ap)
 Casting speed: 0.5-1.5 cast/s (1 int = 0.1 cs)
 
 Habilidade | Custo(ap) | Descrição
 -|-|-
-Fireball | 20 | Causa dano INT num ponto central de impacto e INT decrescendo com raio 2p ao longo de 2s
+Fireball | 20 | Causa 0-5 (INT) de dano num ponto central de impacto e 0-15 (INT) decrescendo com raio 2p ao longo de 3s
 Teleport | 30 | Teleporta para ponto. Distancia máxima  5-15 p (INT)
-Charge | 10 | Move em direção ao alvo com 3x speed. Ao acertar o alvo, causa STR dano e slow 0-50% (STR) por 5s
-Block | 20 | Reduz dano levado no raio de visão em 25-50% (STR) por 5s
-Assassinate | 10 | Faz um ataque a distancia contra o alvo. Caso o alvo não esteja lhe enxergando o projétil causa um adicional de AGI. Também atordoa o alvo por 0-1s (AGI) caso distancia seja até 2p.
-Camouflage   |30 | Torna-se invisível por 1-4s (AGI), ou até realizar um ataque ou lançar uma habilidade.
+Charge | 10 | Move em direção ao alvo com 4x speed. Ao acertar o alvo, realiza um ataque corpo-a-corpo e causa slow 0-50% (STR) por 5s
+Block | 25 | Reduz dano levado em 20-80% (STR) por 5s caso atacante esteja no raio de visão, caso contrario efeito pela metade.
+Assassinate | 15 | Faz um ataque contra o alvo. Causa dano adicional de AGI caso o alvo não esteja lhe enxergando e outro adicional de AGI caso o alvo esteja atordoado. 
+Ambush |35 | Torna-se invisível por 2-6s (AGI), ou até realizar um ataque ou lançar uma habilidade. Ataques realizados enquanto invisivel atordoam o alvo por 1s.
 
 Métodos
 
 Movimento
 - turn(g) - se vira g graus. positivo para direita
 - turnTo(x,y) - vira na direção do ponto
+- turnToHeading(g) - vira na direção do angulo. 0 = cima
 - moveTo(x,y) - vira e move em direção ao ponto
 - moveForward() - Se move para frente
 - moveBackwards() - Se move para trás
@@ -51,8 +52,8 @@ Movimento
 - moveRight() - Se move para direita sem se virar
 
 Ataque
-- attackMelee(x,y) - vira para o ponto e ataca para frente num arco de 180g e distancia 1p
-- attackRanged(x,y) - vira para o ponto e ataca com projétil para frente com distancia 15p e tempo de percurso 0.5s
+- attackMelee(x,y) - vira para o ponto e ataca para frente num arco de 180g e distancia 1p, dano com 10% de bonus.
+- attackRanged(x,y) - vira para o ponto e ataca com projétil para frente com distancia 15p e tempo de percurso 0.5s. Ao acertar causa dano.
 
 Sentidos
 - bool doYouSeeMe(x,y) - returna true caso voce esteja no raio de visão do alvo no ponto
@@ -64,32 +65,34 @@ Sentidos
 - bool getHighHp(&x,&y) - atribui as coordenadas do alvo de maior hp no seu campo de visão e retorna true, ou false caso não haja nenhum alvo no ponto
 - bool getCloseEnemy(&x,&y) - atribui as coordenadas do alvo mais próximo no seu campo de visão e retorna true, ou false caso não haja nenhum alvo no ponto
 - bool getFarEnemy(&x,&y) - atribui as coordenadas do alvo mais longe no seu campo de visão e retorna true, ou false caso não haja nenhum alvo no ponto
-- int getEnemyHealth(x,y) - retorna o estado de saúde do alvo no ponto (valores de 1 até 4), ou 0 caso não haja alvo no ponto
+- float getEnemyHealth(x,y) - retorna percentagem de vida do alvo no ponto, ou 0 caso não haja alvo no ponto
 - int getMyHp() - retorna o hp
 - int getMyAp() - retorna o ap
 - int getMySTR() - retorna STR
 - int getMyAGI() - retorna AGI
 - int getMyINT() - retorna INT
 - float getMySpeed() - retorna speed
+- float getMyHeading() - retorna angulo da direcao 0 = cima
 - bool areYouAWarrior(x,y) - retorna true caso o alvo no ponto tenha STR como seu maior atributo
 - bool areYouARogue(x,y) - retorna true caso o alvo no ponto tenha AGI como seu maior atributo
 - bool areYouAMage(x,y) - retorna true caso o alvo no ponto tenha INT como seu maior atributo
 - float whereThatCameFrom() - retorna o angulo que originou o último ataque recebido
 - bool lockOnTarget(x,y) - fixa a atenção no alvo no ponto. false se nao tiver alvo
 - bool isLockedTargetVisible() retorna true caso alvo fixado esteja no campo de visão
-- getLockedTargetCoords(&x,&y) - atribui as coordenadas do alvo fixado
+- int getLockedTargetCoords(&x,&y) - atribui as coordenadas do alvo fixado, retorna 0 caso o alvo nao esteja mais visivel
 - float getLockedTargetSpeed() - retorna a velocidade do alvo fixado
 - float getLockedTargetHeading() - retorna a direção do alvo fixado
+- float getLockedTargetRelativeHeading() - retorna a direção do alvo fixado relativa ao gladiador
 
 Habilidades
 - fireball(x,y) - lança fireball no ponto
 - teleport(x,y) - teleporta para o ponto
 - charge() - usa charge no alvo fixado
 - block() - usa block
-- assassinate(x,y) - usa assassinate no ponto
-- camouflage() - usa camouflage
+- assassinate() - usa assassinate no alvo fixado
+- ambush() - usa ambush
 - float getBlockTimeLeft() - retorna o tempo restante da habilidade block
-- float getCamouflageTimeLeft() - retorna o tempo restante da habilidade camouflage
+- float getAmbushTimeLeft() - retorna o tempo restante da habilidade ambush
 
 Matemática
 - float getDist(x,y) - retorna a distância até o ponto
