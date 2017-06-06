@@ -1,22 +1,18 @@
 #include "gladCodeCore.c"
 
-//inicializa o gladiador
+//inicializa o gladiador. cada processo chama esta função no setup
 void registerGlad(){
-    //printf("[%i]",gladid);
-    (g+gladid)->lvl = 1;
-    (g+gladid)->vrad = 60;
-    (g+gladid)->vis = 9;
+    (g+gladid)->lvl = 1; //lvl inicial
+    (g+gladid)->vrad = 60; //raio de visao 60 graus
+    (g+gladid)->vis = 9; //alcance da visao 9 passos
     (g+gladid)->lockedfor = 0;
-    //inicia em uma posicao aleatoria do mapa
-    (g+gladid)->x = screenW/nglad * (gladid + 0.5);
-    (g+gladid)->y = gladid%2 * screenH + 2 - (gladid%2 * 4) ;
-    //um angulo de visao aleatorio
-    (g+gladid)->head = rand()%360;
-    (g+gladid)->targetlocked = -1;
-    (g+gladid)->up = 0;
-    (g+gladid)->damagedme = 0;
+    setStartingPos(); //inicializa a posicao inicial de cada gladiador formando um circulo
+    (g+gladid)->targetlocked = -1; //nenhum alvo fixado
+    (g+gladid)->up = 0; //qual atributo vai ser melhorado quando subir de nivel
+    (g+gladid)->damagedme = 0; //inteiro que convertido em binario contem bits que dizem quem deu dano no gladiador
+    (g+gladid)->lasthit = 0; //angulo de onde veio o ultimo ataque
     int i;
-    for (i=0 ; i<N_BUFFS ; i++){
+    for (i=0 ; i<N_BUFFS ; i++){ //zera todos buffs
         (g+gladid)->buffs[i].timeleft = 0;
         (g+gladid)->buffs[i].value = 0;
     }
@@ -24,7 +20,7 @@ void registerGlad(){
 
 void setSTR(int n){
     (g+gladid)->STR = n;
-    (g+gladid)->hp = 50 + n*10;
+    (g+gladid)->hp = 100 + n*20;
     (g+gladid)->maxhp = (g+gladid)->hp;
     (g+gladid)->dmg = n+5;
 }
@@ -37,7 +33,7 @@ void setAGI(int n){
 
 void setINT(int n){
     (g+gladid)->INT = n;
-    (g+gladid)->ap = 50 + n*10;
+    (g+gladid)->ap = 100 + n*20;
     (g+gladid)->maxap = (g+gladid)->ap;
     (g+gladid)->cs = 0.5 + n*0.1;
 }
@@ -46,6 +42,7 @@ void setName(char *str){
     strcpy((g+gladid)->name, str);
 }
 
+//indica o atributo que sera feito upgrade quando o gladiador subir de nivel
 void upgradeSTR(){
     (g+gladid)->up = 1;
 }
@@ -58,7 +55,6 @@ void upgradeINT(){
     (g+gladid)->up = 3;
 }
 
-//se move para a frente
 void moveForward(){
     waitLoad();
 
@@ -69,7 +65,6 @@ void moveForward(){
     saveRelease();
 }
 
-//se move para tras
 void moveBackwards(){
     waitLoad();
 
@@ -87,7 +82,6 @@ void moveBackwards(){
     saveRelease();
 }
 
-//se move para a esquerda
 void moveLeft(){
     waitLoad();
 
@@ -105,7 +99,6 @@ void moveLeft(){
     saveRelease();
 }
 
-//se move para a direita
 void moveRight(){
     waitLoad();
 
@@ -146,6 +139,17 @@ void turnTo(float x, float y){
     saveRelease();
 }
 
+//se vira para uma direcao escolhida
+void turnToHeading(float ang){
+    waitLoad();
+
+    (g+gladid)->head = getNormalAngle(ang);
+    actioncode = ACTION_MOVEMENT;
+    (g+gladid)->lockedfor = timeInterval;
+
+    saveRelease();
+}
+
 //vira para o ponto, e anda em direcao a ele
 void moveTo(float x, float y){
     waitLoad();
@@ -158,13 +162,11 @@ void moveTo(float x, float y){
     saveRelease();
 }
 
-//retorna X do glad
 float getMyX(){
     loadStructFromMemory();
     return (g+gladid)->x;
 }
 
-//retorna Y do glad
 float getMyY(){
     loadStructFromMemory();
     return (g+gladid)->y;
@@ -177,43 +179,42 @@ void getMyCoords(float *x, float *y){
     *y = (g+gladid)->y;
 }
 
-//retorna hp
 float getMyHp(){
     loadStructFromMemory();
     return (g+gladid)->hp;
 }
 
-//retorna ap
 float getMyAp(){
     loadStructFromMemory();
     return (g+gladid)->ap;
 }
 
-//retorna STR
 int getMySTR(){
     loadStructFromMemory();
     return (g+gladid)->STR;
 }
 
-//retorna AGI
 int getMyAGI(){
     loadStructFromMemory();
     return (g+gladid)->AGI;
 }
 
-//retorna INT
 int getMyINT(){
     loadStructFromMemory();
     return (g+gladid)->INT;
 }
 
-//recebe um ponto, retorna a distancia entre estes pontos
+float getMyHeading(){
+    loadStructFromMemory();
+    return (g+gladid)->head;
+}
+
+//recebe um ponto, retorna a distancia entre estes pontos e o gladiador
 float getDist(float x, float y){
     loadStructFromMemory();
     return getDistUnsafe(x,y);
 }
 
-//retorna velocidade
 float getMySpeed(){
     loadStructFromMemory();
     return (g+gladid)->spd;
@@ -236,7 +237,7 @@ int howManyEnemies(){
     loadStructFromMemory();
     int i, cont=0;
     for (i=0 ; i<nglad ; i++){
-        if (i != gladid && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INSIBIBLE].timeleft <= 0){
+        if (i != gladid && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INVISIBLE].timeleft <= 0){
             float dist = getDistUnsafe((g+i)->x, (g+i)->y);
             float ang = getAngle((g+i)->x, (g+i)->y) - (g+gladid)->head;
             ang = getNormalAngle(ang);
@@ -250,11 +251,12 @@ int howManyEnemies(){
     return cont;
 }
 
+//atribui as coordenadas do inimigo mais próximo dentro o campo de visao
 int getCloseEnemy(float *x, float *y){
     loadStructFromMemory();
     int i, closeri=-1, lowerdist;
     for (i=0 ; i<nglad ; i++){
-        if (i != gladid && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INSIBIBLE].timeleft <= 0){
+        if (i != gladid && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INVISIBLE].timeleft <= 0){
             float dist = getDistUnsafe((g+i)->x, (g+i)->y);
             float ang = getAngle((g+i)->x, (g+i)->y) - (g+gladid)->head;
             ang = getNormalAngle(ang);
@@ -275,11 +277,12 @@ int getCloseEnemy(float *x, float *y){
     }
 }
 
+//atribui as coordenadas do inimigo mais longe  dentro o campo de visao
 int getFarEnemy(float *x, float *y){
     loadStructFromMemory();
     int i, fari=-1, higherdist;
     for (i=0 ; i<nglad ; i++){
-        if (i != gladid && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INSIBIBLE].timeleft <= 0){
+        if (i != gladid && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INVISIBLE].timeleft <= 0){
             float dist = getDistUnsafe((g+i)->x, (g+i)->y);
             float ang = getAngle((g+i)->x, (g+i)->y) - (g+gladid)->head;
             ang = getNormalAngle(ang);
@@ -305,7 +308,7 @@ int getLowHp(float *x, float *y){
     loadStructFromMemory();
     int i, loweri=-1;
     for (i=0 ; i<nglad ; i++){
-        if (i != gladid && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INSIBIBLE].timeleft <= 0){
+        if (i != gladid && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INVISIBLE].timeleft <= 0){
             float dist = getDistUnsafe((g+i)->x, (g+i)->y);
             float ang = getAngle((g+i)->x, (g+i)->y) - (g+gladid)->head;
             ang = getNormalAngle(ang);
@@ -329,7 +332,7 @@ int getHighHp(float *x, float *y){
     loadStructFromMemory();
     int i, higheri=-1;
     for (i=0 ; i<nglad ; i++){
-        if (i != gladid && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INSIBIBLE].timeleft <= 0){
+        if (i != gladid && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INVISIBLE].timeleft <= 0){
             float dist = getDistUnsafe((g+i)->x, (g+i)->y);
             float ang = getAngle((g+i)->x, (g+i)->y) - (g+gladid)->head;
             ang = getNormalAngle(ang);
@@ -348,33 +351,27 @@ int getHighHp(float *x, float *y){
     }
 }
 
-int getEnemyHealth(float x, float y){
+//se encontrar inimigo no ponto, retorna valores entre 0 e 1, indicando a percentagem de vida do alvo no ponto
+float getEnemyHealth(float x, float y){
     loadStructFromMemory();
     int i;
     for (i=0 ; i<nglad ; i++){
-        if ( (g+i)->x == x && (g+i)->y == y && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INSIBIBLE].timeleft <= 0)
+        if ( (g+i)->x == x && (g+i)->y == y && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INVISIBLE].timeleft <= 0)
             break;
     }
     if (i == nglad)
         return 0;
     else{
-        float porc = (float)((g+i)->hp) / (g+i)->maxhp;
-        if (porc > 0.75)
-            return 4;
-        else if (porc > 0.5)
-            return 3;
-        else if (porc > 0.25)
-            return 2;
-        else
-            return 1;
+        return (float)((g+i)->hp) / (g+i)->maxhp;
     }
 }
 
+//verifica qual a especialidade o alvo no ponto, STR, AGI e INT
 int areYouAWarrior(float x, float y){
     loadStructFromMemory();
     int i;
     for (i=0 ; i<nglad ; i++){
-        if ( (g+i)->x == x && (g+i)->y == y && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INSIBIBLE].timeleft <= 0)
+        if ( (g+i)->x == x && (g+i)->y == y && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INVISIBLE].timeleft <= 0)
             break;
     }
     if (i == nglad)
@@ -391,7 +388,7 @@ int areYouARogue(float x, float y){
     loadStructFromMemory();
     int i;
     for (i=0 ; i<nglad ; i++){
-        if ( (g+i)->x == x && (g+i)->y == y && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INSIBIBLE].timeleft <= 0)
+        if ( (g+i)->x == x && (g+i)->y == y && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INVISIBLE].timeleft <= 0)
             break;
     }
     if (i == nglad)
@@ -408,7 +405,7 @@ int areYouAMage(float x, float y){
     loadStructFromMemory();
     int i;
     for (i=0 ; i<nglad ; i++){
-        if ( (g+i)->x == x && (g+i)->y == y && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INSIBIBLE].timeleft <= 0)
+        if ( (g+i)->x == x && (g+i)->y == y && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INVISIBLE].timeleft <= 0)
             break;
     }
     if (i == nglad)
@@ -421,11 +418,12 @@ int areYouAMage(float x, float y){
     }
 }
 
+//se o gladiador está no campo de visao do inimigo no ponto, retorna 1
 int doYouSeeMe(float x, float y){
     loadStructFromMemory();
     int i;
     for (i=0 ; i<nglad ; i++){
-        if ( (g+i)->x == x && (g+i)->y == y && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INSIBIBLE].timeleft <= 0)
+        if ( (g+i)->x == x && (g+i)->y == y && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INVISIBLE].timeleft <= 0)
             break;
     }
     if (i == nglad)
@@ -441,30 +439,39 @@ int doYouSeeMe(float x, float y){
     }
 }
 
+//lana um projetil em direcao ao ponto
 int attackRanged(float x, float y){
     waitLoad();
 
     turnToUnsafe(x,y);
     float spdx, spdy;
     calcSidesFromAngleDist(&spdx, &spdy, 1, (g+gladid)->head);
-    launchProjectile((g+gladid)->x, (g+gladid)->y, (g+gladid)->dmg, spdx, -spdy, PROJECTILE_TYPE_ATTACK);
+
+    int projectiletype = PROJECTILE_TYPE_ATTACK;
+    if ((g+gladid)->buffs[BUFF_INVISIBLE].timeleft > 0)
+        projectiletype = PROJECTILE_TYPE_STUN;
+
+    launchProjectile((g+gladid)->x, (g+gladid)->y, (g+gladid)->dmg, spdx, -spdy, projectiletype);
+
     actioncode = ACTION_RANGED_ATTACK;
     (g+gladid)->lockedfor = 1/(g+gladid)->as;
 
     saveRelease();
 }
 
+//angulo de onde originou o ultimo ataque recebido
 float whereThatCameFrom(){
     loadStructFromMemory();
     return (g+gladid)->lasthit;
 }
 
+//fixa em um gladiador no ponto. util para manter o foco em um inimigo
 int lockOnTarget(float x, float y){
     waitLoad();
 
     int i;
     for (i=0 ; i<nglad ; i++){
-        if ( (g+i)->x == x && (g+i)->y == y && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INSIBIBLE].timeleft <= 0){
+        if ( (g+i)->x == x && (g+i)->y == y && (g+i)->hp > 0 && (g+i)->buffs[BUFF_INVISIBLE].timeleft <= 0){
             (g+gladid)->targetlocked = i;
             saveRelease();
             return 1;
@@ -474,6 +481,7 @@ int lockOnTarget(float x, float y){
     return 0;
 }
 
+//verifica se o alvo fixado esta no campo de visao
 int isLockedTargetVisible(){
     loadStructFromMemory();
     if ( (g+gladid)->targetlocked == -1 )
@@ -485,7 +493,7 @@ int isLockedTargetVisible(){
     if ((g+target)->hp <= 0)
         fail = 1;
 
-    if ((g+target)->buffs[BUFF_INSIBIBLE].timeleft > 0)
+    if ((g+target)->buffs[BUFF_INVISIBLE].timeleft > 0)
         fail = 1;
 
     float dist = getDistUnsafe( (g+target)->x, (g+target)->y );
@@ -498,12 +506,15 @@ int isLockedTargetVisible(){
         fail = 1;
 
     if (fail){
+        waitLoad();
         (g+gladid)->targetlocked = -1;
+        saveRelease();
         return 0;
     }
     return 1;
 }
 
+//recebe as coordenadas do alvo fixado
 int getLockedTargetCoords(float *x, float *y){
     loadStructFromMemory();
     if ( isLockedTargetVisible() ){
@@ -523,6 +534,7 @@ float getLockedTargetSpeed(){
     return (g+target)->spd;
 }
 
+//direcao do alvo fixado
 float getLockedTargetHeading(){
     loadStructFromMemory();
     if (!isLockedTargetVisible())
@@ -531,16 +543,29 @@ float getLockedTargetHeading(){
     return (g+target)->head;
 }
 
+//direcao relativa do alvo fixado
+float getLockedTargetRelativeHeading(){
+    loadStructFromMemory();
+    if (!isLockedTargetVisible())
+        return 0;
+    int target = (g+gladid)->targetlocked;
+    float dif = getNormalAngle((g+target)->head - (g+gladid)->head);
+    return dif;
+}
+
+//quanto tempo para acabar o buff de protecao
 float getBlockTimeLeft(){
     loadStructFromMemory();
     return (g+gladid)->buffs[BUFF_RESIST].timeleft;
 }
 
-float getCamouflageTimeLeft(){
+//quanto tempo para acabar o buff de invisibilidade
+float getAmbushTimeLeft(){
     loadStructFromMemory();
-    return (g+gladid)->buffs[BUFF_INSIBIBLE].timeleft;
+    return (g+gladid)->buffs[BUFF_INVISIBLE].timeleft;
 }
 
+//lanca um projetil do tipo fireball
 void fireball(float x, float y){
     waitLoad();
 
@@ -550,7 +575,7 @@ void fireball(float x, float y){
         (g+gladid)->head = getNormalAngle(getAngle(x,y));
         float spdx, spdy;
         calcSidesFromAngleDist(&spdx, &spdy, 1, (g+gladid)->head);
-        launchProjectile((g+gladid)->x, (g+gladid)->y, (g+gladid)->INT, spdx, -spdy, PROJECTILE_TYPE_FIREBALL);
+        launchProjectile((g+gladid)->x, (g+gladid)->y, (g+gladid)->INT * 0.5, spdx, -spdy, PROJECTILE_TYPE_FIREBALL);
         actioncode = ABILITY_FIREBALL;
         (g+gladid)->lockedfor = 1/(g+gladid)->cs;
     }
@@ -558,6 +583,7 @@ void fireball(float x, float y){
     saveRelease();
 }
 
+//vai para o ponto, ou o mais proximo que conseguir dele
 void teleport(float x, float y){
     waitLoad();
 
@@ -586,52 +612,63 @@ void teleport(float x, float y){
     saveRelease();
 }
 
+//se move com velocidade aumentada para o alvo fixado, e entao ataca.
 void charge(){
-    waitLoad();
+    if (isLockedTargetVisible()){
+        waitLoad();
+        if ((g+gladid)->ap >= abilitycost[ABILITY_CHARGE] ){
+            int target = (g+gladid)->targetlocked;
 
-    if ((g+gladid)->ap >= abilitycost[ABILITY_CHARGE] && isLockedTargetVisible() ){
-        int target = (g+gladid)->targetlocked;
-
-        (g+gladid)->ap -= abilitycost[ABILITY_CHARGE];
-        addBuff(gladid, BUFF_MOVEMENT, 1/(g+gladid)->cs, 3);
-
-        saveRelease();
-
-        while(getDistUnsafe((g+target)->x, (g+target)->y) > 1 ){
-            waitLoad();
-
-            if ((g+gladid)->buffs[BUFF_MOVEMENT].timeleft <= timeInterval){
-                addBuff(gladid, BUFF_MOVEMENT, timeInterval*2, 3);
-            }
-            moveToUnsafe((g+target)->x, (g+target)->y);
-            actioncode = ABILITY_CHARGE;
-            (g+gladid)->lockedfor = timeInterval;
+            (g+gladid)->ap -= abilitycost[ABILITY_CHARGE];
+            addBuff(gladid, BUFF_MOVEMENT, 1/(g+gladid)->cs, 4);
 
             saveRelease();
+
+            //se move em direcao ao alvo
+            int stopcharge = 0;
+            while(getDistUnsafe((g+target)->x, (g+target)->y) > 1 && !stopcharge ){
+                waitLoad();
+
+                if ((g+gladid)->buffs[BUFF_MOVEMENT].timeleft <= timeInterval){
+                    addBuff(gladid, BUFF_MOVEMENT, timeInterval*2, 4);
+                }
+                moveToUnsafe((g+target)->x, (g+target)->y);
+                actioncode = ABILITY_CHARGE;
+                (g+gladid)->lockedfor = timeInterval;
+
+                //para a charge se o alvo esta invisivel ou saiu do alcance (teleport)
+                if ( (g+target)->buffs[BUFF_INVISIBLE].timeleft > 0 || getDistUnsafe((g+target)->x, (g+target)->y) > (g+gladid)->vis )
+                    stopcharge = 1;
+
+                saveRelease();
+            }
+
+            waitLoad();
+
+            if (!stopcharge){
+                attackMeleeUnsafe((g+target)->x, (g+target)->y);
+                actioncode = ABILITY_CHARGE;
+                addBuff(target , BUFF_MOVEMENT, 5, 1 - (float)(g+gladid)->STR/20);
+            }
+
+            if ( (g+gladid)->buffs[BUFF_MOVEMENT].timeleft > 0){
+                (g+gladid)->lockedfor = (g+gladid)->buffs[BUFF_MOVEMENT].timeleft;
+                (g+gladid)->buffs[BUFF_MOVEMENT].timeleft = timeInterval;
+            }
+            else
+                (g+gladid)->lockedfor = 0;
         }
 
-        waitLoad();
-
-        attackMeleeUnsafe((g+target)->x, (g+target)->y);
-        actioncode = ABILITY_CHARGE;
-        addBuff(target , BUFF_MOVEMENT, 5, 1 - (float)(g+gladid)->STR/20);
-
-        if ( (g+gladid)->buffs[BUFF_MOVEMENT].timeleft > 0){
-            (g+gladid)->lockedfor = (g+gladid)->buffs[BUFF_MOVEMENT].timeleft;
-            (g+gladid)->buffs[BUFF_MOVEMENT].timeleft = timeInterval;
-        }
-        else
-            (g+gladid)->lockedfor = 0;
+        saveRelease();
     }
-
-    saveRelease();
 }
 
+//ganha buff de protecao para ataques pela frente
 void block(){
     waitLoad();
 
     if ((g+gladid)->ap >= abilitycost[ABILITY_BLOCK]){
-        addBuff(gladid, BUFF_RESIST, 5, 0.25 + (float)(g+gladid)->STR * 0.025);
+        addBuff(gladid, BUFF_RESIST, 5, 0.2 + (float)(g+gladid)->STR * 0.06);
 
         (g+gladid)->ap -= abilitycost[ABILITY_BLOCK];
         actioncode = ABILITY_BLOCK;
@@ -641,36 +678,51 @@ void block(){
     saveRelease();
 }
 
-void assassinate(float x, float y){
-    waitLoad();
+//ataca alvo no ponto, se estiver perto atordoa, se o alvo nao enxergar o gladiador e/ou estiver com stun, causa dano extra
+void assassinate(){
+    if (isLockedTargetVisible()){
+        waitLoad();
 
-    if ((g+gladid)->ap >= abilitycost[ABILITY_ASSASSINATE]){
-        int seen = doYouSeeMe(x,y);
-        (g+gladid)->ap -= abilitycost[ABILITY_ASSASSINATE];
-        turnToUnsafe(x,y);
-        float spdx, spdy;
-        calcSidesFromAngleDist(&spdx, &spdy, 1, (g+gladid)->head);
+        if ((g+gladid)->ap >= abilitycost[ABILITY_ASSASSINATE]){
+            float x,y;
+            getLockedTargetCoords(&x, &y);
+            int seen = doYouSeeMe(x,y);
+            (g+gladid)->ap -= abilitycost[ABILITY_ASSASSINATE];
+            turnToUnsafe(x,y);
+            float spdx, spdy;
+            calcSidesFromAngleDist(&spdx, &spdy, 1, (g+gladid)->head);
 
-        if (!seen)
-            launchProjectile((g+gladid)->x, (g+gladid)->y, (g+gladid)->dmg + (g+gladid)->AGI, spdx, -spdy, PROJECTILE_TYPE_ASSASSINATE);
-        else
-            launchProjectile((g+gladid)->x, (g+gladid)->y, (g+gladid)->dmg, spdx, -spdy, PROJECTILE_TYPE_ASSASSINATE);
+            float damage = (g+gladid)->dmg;
+            if (!seen || (g+gladid)->buffs[BUFF_INVISIBLE].timeleft > 0)
+                damage += (g+gladid)->AGI;
 
-        actioncode = ABILITY_ASSASSINATE;
-        (g+gladid)->lockedfor = 1/(g+gladid)->cs;
+            int target = (g+gladid)->targetlocked;
+            if ((g+target)->buffs[BUFF_STUN].timeleft > 0)
+                damage += (g+gladid)->AGI;
+
+            int projectiletype = PROJECTILE_TYPE_ATTACK;
+            if ((g+gladid)->buffs[BUFF_INVISIBLE].timeleft > 0)
+                projectiletype = PROJECTILE_TYPE_STUN;
+
+            launchProjectile((g+gladid)->x, (g+gladid)->y, damage, spdx, -spdy, projectiletype);
+
+            actioncode = ABILITY_ASSASSINATE;
+            (g+gladid)->lockedfor = 1/(g+gladid)->cs;
+        }
+
+        saveRelease();
     }
-
-    saveRelease();
 }
 
-void camouflage(){
+//ganha buff de invisibilidade, impossiblitando que inimigos enxergue o gladiador e faz que proximo ataque cause stun
+void ambush(){
     waitLoad();
 
-    if ((g+gladid)->ap >= abilitycost[ABILITY_CAMOUFLAGE]){
-        addBuff(gladid, BUFF_INSIBIBLE, 1 + (float)(g+gladid)->AGI/10*3, 0);
+    if ((g+gladid)->ap >= abilitycost[ABILITY_AMBUSH]){
+        addBuff(gladid, BUFF_INVISIBLE, 2 + (g+gladid)->AGI * 0.4, 0);
 
-        (g+gladid)->ap -= abilitycost[ABILITY_CAMOUFLAGE];
-        actioncode = ABILITY_CAMOUFLAGE;
+        (g+gladid)->ap -= abilitycost[ABILITY_AMBUSH];
+        actioncode = ABILITY_AMBUSH;
         (g+gladid)->lockedfor = 1/(g+gladid)->cs;
     }
 

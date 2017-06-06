@@ -11,9 +11,11 @@
 void startStructFromMemory(){
     g = (struct gladiador*)malloc(sizeof(struct gladiador) * (nglad));
     int i;
+    //todos começam com lvl 0, para saber quem já foi carregado da memoria
     for (i=0 ; i<nglad ; i++)
         (g+i)->lvl = 0;
 
+    //o primeiro executa o setup
     if (gladid == 0){
         setup();
         if (!checkSetup()){
@@ -26,6 +28,7 @@ void startStructFromMemory(){
         printf("%s (thread %i) setup complete.\n",(g+gladid)->name, gladid);
     }
     else{
+        //todos os outros esperam pelo gladiador anterior
         while ((g+gladid-1)->lvl != 1){
             waitForMutex();
             loadStructFromMemory();
@@ -41,12 +44,7 @@ void startStructFromMemory(){
         releaseMutex();
         printf("%s (thread %i) setup complete.\n",(g+gladid)->name, gladid);
     }
-    /*
-    printf("%i: ",gladid);
-    for (i=0 ; i<nglad ; i++)
-        printf("%i ",(g+i)->lvl);
-    printf("\n");
-    */
+    //espera o ultimo estar pronto
     while ((g+nglad-1)->lvl != 1){
         waitForMutex();
         loadStructFromMemory();
@@ -107,6 +105,7 @@ float getDistUnsafe(float x, float y){
     return sqrt( pow(dx,2) + pow(dy,2) );
 }
 
+//calcula por semelhança de triangulos os catetos maxx, e maxy, a partir do triangulo de catetos destx, desty e hipotenusa maxdist
 void calcSidesFromMaxDist(float destx, float desty,  float maxdist, float *maxx, float *maxy){
     float dx1, dy1, dh1;
     dh1 = getDistUnsafe(destx,desty);
@@ -117,36 +116,25 @@ void calcSidesFromMaxDist(float destx, float desty,  float maxdist, float *maxx,
 }
 
 void setDamagedMe(int me, int en){
-    //pego o bit EN, deslocando pra direita, e pegando o ultimo com resto.
+    //1 caso o gladiador já tenha me acertado, do contrario 0.
+    //o damagedme é um inteiro representado pela conversão binária dos 0s e 1s da convenção acima.
+    //o gladiador 0 é o bit menos significativo.
     int current = (g+me)->damagedme;
     int cbit = (current >> en)%2;
     if (!cbit)
         (g+me)->damagedme += 1<<en;
-    //printf("s %i %i %i %i\n",me,en,current, (g+me)->damagedme);
 }
 
 int haveYouDamagedMe(int en){
+    //cada
     int current = (g+gladid)->damagedme;
     int cbit = (current >> en)%2;
-    //printf("g %i %i %i %i\n",gladid,en,current,cbit);
     return cbit;
-}
-
-void dealDamage(int id, float value){
-    int resist = 0;
-    if ((g+id)->buffs[BUFF_RESIST].timeleft > 0){
-        if ((g+id)->head >= (g+id)->lasthit - (g+id)->vrad/2 && (g+id)->head <= (g+id)->lasthit + (g+id)->vrad/2){
-            resist = 1;
-        }
-    }
-    if (resist)
-        (g+id)->hp -= value * (1 - (g+id)->buffs[BUFF_RESIST].value);
-    else
-        (g+id)->hp -= value;
 }
 
 void addBuff(int id, int code, float timeleft, float value){
     if (code == BUFF_BURN){
+        //caso ja tenha um burn, recumeça o tempo, e adiciona o dano que faltava
         if ((g+id)->buffs[code].timeleft > 0){
             float remaining = (g+id)->buffs[code].value * (g+id)->buffs[code].timeleft/2;
             (g+id)->buffs[code].value = value + remaining;
@@ -155,6 +143,7 @@ void addBuff(int id, int code, float timeleft, float value){
             (g+id)->buffs[code].value = value;
     }
     else if (code == BUFF_MOVEMENT){
+        //o valor do buff novo substitui o do anterior
         if ((g+id)->buffs[code].timeleft > 0)
             (g+id)->spd /= (g+id)->buffs[code].value;
         (g+id)->buffs[code].value = value;
@@ -163,11 +152,24 @@ void addBuff(int id, int code, float timeleft, float value){
     else if (code == BUFF_RESIST){
         (g+id)->buffs[code].value = value;
     }
-    else if (code == BUFF_INSIBIBLE){
-    }
-    else if (code == BUFF_STUN){
-    }
     (g+id)->buffs[code].timeleft = timeleft;
+}
+
+void dealDamage(int id, float value){
+    //se estiver invisivel, causa stun
+    if ((g+gladid)->buffs[BUFF_INVISIBLE].timeleft > 0){
+        addBuff(id, BUFF_STUN, 1 , 0);
+    }
+    //caso a vitima tenha o buff de resistencia e esteja virado para o atacante, leva menos dano
+    if ((g+id)->buffs[BUFF_RESIST].timeleft > 0){
+        if ((g+id)->head >= (g+id)->lasthit - (g+id)->vrad/2 && (g+id)->head <= (g+id)->lasthit + (g+id)->vrad/2){
+            value *= (1 - (g+id)->buffs[BUFF_RESIST].value);
+        }
+        else{
+            value *= (1 - (g+id)->buffs[BUFF_RESIST].value / 2);
+        }
+    }
+    (g+id)->hp -= value;
 }
 
 void updateBuffs(){
@@ -177,20 +179,18 @@ void updateBuffs(){
             (g+gladid)->buffs[i].timeleft -= timeInterval;
 
             if (i == BUFF_BURN){
-                (g+gladid)->hp -= (g+gladid)->buffs[i].value / 2 * (1 - (g+gladid)->buffs[BUFF_RESIST].value) * timeInterval;
+                (g+gladid)->hp -= (g+gladid)->buffs[i].value / 2 * (1 - (g+gladid)->buffs[BUFF_RESIST].value/2) * timeInterval;
             }
+            //caso o buff acabe, reduz de volta a velocidade
             else if (i == BUFF_MOVEMENT){
                 if ((g+gladid)->buffs[i].timeleft <= 0){
                     (g+gladid)->spd /= (g+gladid)->buffs[i].value;
                 }
             }
-            else if (i == BUFF_RESIST){
-            }
-            else if (i == BUFF_INSIBIBLE){
-                if (actioncode != ACTION_WAITING && actioncode != ACTION_MOVEMENT && actioncode != ABILITY_CAMOUFLAGE)
+            //se atacar perde o buff
+            else if (i == BUFF_INVISIBLE){
+                if (actioncode != ACTION_WAITING && actioncode != ACTION_MOVEMENT && actioncode != ABILITY_AMBUSH && actioncode != ACTION_NONE)
                     (g+gladid)->buffs[i].timeleft = 0;
-            }
-            else if (i == BUFF_STUN){
             }
         }
         else {
@@ -243,11 +243,13 @@ void updateProjectiles(){
     float speed = 30; //quantos timeInterval ele anda
     struct projectile *a = p;
     int i=0;
+    //varre a lista de projeteis
     while (a != NULL){
         i++;
         int hitglad = 0;
         waitForMutex();
         loadStructFromMemory();
+        //numero de intervalos que um projetil anda num mesmo intervalo de tempo do gladiador
         for (k=0 ; k < speed * timeInterval * travelunit ; k++){
             a->x += a->spdx / travelunit;
             a->y += a->spdy / travelunit;
@@ -260,7 +262,7 @@ void updateProjectiles(){
                 if ( (g+j)->hp > 0 && j != gladid){
                     float xg = (g+j)->x;
                     float yg = (g+j)->y;
-                    //printf("%i %i %i %.1f %.1f %.1f %.1f %.1f %.1f\n",gladid,i,k,xl,xg,xr,yl,yg,yr);
+                    //acertou
                     if ( xg >= xl && xg <= xr && yg >= yl && yg <= yr ){
                         (g+j)->lasthit = getNormalAngle(getAngleFromAB((g+j)->x, (g+j)->y, a->x - a->spdx / travelunit, a->y - a->spdy / travelunit));
                         setDamagedMe(j, gladid);
@@ -274,6 +276,7 @@ void updateProjectiles(){
                 break;
         }
         if (a->dist >= PROJECTILE_MAX_DISTANCE || hitglad){
+            //causa burn da fireball
             if (a->type == PROJECTILE_TYPE_FIREBALL){
                 int m;
                 for (m=0 ; m<nglad ; m++){
@@ -281,18 +284,15 @@ void updateProjectiles(){
                     float dy = (g+m)->y - a->y;
                     float dist = sqrt( pow(dx,2) + pow(dy,2) );
                     if (dist <= 2){
-                        float dmg = (1-(dist/2)) * a->dmg;
+                        float dmg = (1-(dist/2)) * a->dmg * 3;
                         addBuff(m, BUFF_BURN, 2, dmg);
-                        //printf("dano: %.1f\n",(1-(dist/2)) * a->dmg);
                         (g+m)->lasthit = getNormalAngle(getAngleFromAB((g+m)->x, (g+m)->y, a->x - a->spdx / travelunit, a->y - a->spdy / travelunit));
                         setDamagedMe(m, gladid);
                     }
                 }
             }
-            else if (a->type == PROJECTILE_TYPE_ASSASSINATE){
-                if (a->dist <= 2 && hitglad){
-                    addBuff(j, BUFF_STUN, (float)(g+gladid)->AGI/10, 0);
-                }
+            else if (hitglad && a->type == PROJECTILE_TYPE_STUN){
+                addBuff(j, BUFF_STUN, 1 , 0);
             }
             struct projectile *t = a->next;
             removeProjectile(a);
@@ -317,10 +317,12 @@ void printOutput(){
     fclose(arq);
 }
 
+//atualiza tudo que depende do tempo no gladiador
 void updateTime(){
     int i;
     waitForMutex();
     loadStructFromMemory();
+    //lvl up dos gladiadores que bateram no que morreu
     if ((g+gladid)->hp <= 0 && !endsim){
         for (i=0 ; i<nglad ; i++){
             if (haveYouDamagedMe(i) && i != gladid && (g+i)->hp > 0){
@@ -340,9 +342,10 @@ void updateTime(){
     saveStructToMemory();
     releaseMutex();
 
+    //atualiza o tempo na memoria, e espera pela acão dos outros, para evitar que um ande na frente na simulação
     updateSimCounter(gladid, timeInterval);
     double cont[nglad], lower;
-    int loweri, timeout = 1000;
+    int loweri, timeout = 10000;
     do{
         getAllSimCounters(cont);
         int alive = 0;
@@ -370,12 +373,17 @@ void updateTime(){
         waitForMutex();
         loadStructFromMemory();
 
+        //recupera ap
         (g+gladid)->ap += (g+gladid)->maxap * AP_RECOVERY * timeInterval;
         if ((g+gladid)->ap > (g+gladid)->maxap)
             (g+gladid)->ap = (g+gladid)->maxap;
 
+        if (cont[gladid] >= timeLimit)
+            (g+gladid)->hp -= timeInterval;
+
         updateBuffs();
 
+        //passa fica mais proximo de poder agir de novo
         if ((g+gladid)->lockedfor > 0)
             (g+gladid)->lockedfor -= timeInterval;
 
@@ -384,6 +392,7 @@ void updateTime(){
     }
 }
 
+//grava na outString o que o gladiador fez no presente momento
 void recordSteps(){
     double simtime = getSimCounter(gladid);
     char buffer[500], buffstr[100]="";
@@ -456,13 +465,14 @@ void preventLeaving(){
         (g+gladid)->x = 0;
 }
 
+//impede que um gladiador invada o hitbox de outro
 void preventCollision(float lastdx, float lastdy){
     int i;
     float h;
     for (i=0 ; i<nglad ; i++){
         if (i != gladid && (g+i)->hp > 0){
             h = getDistUnsafe( (g+i)->x, (g+i)->y );
-            if (h < 0.5){
+            if (h < GLAD_HITBOX){
                 if (h == 0){
                     (g+gladid)->x -= lastdx;
                     (g+gladid)->y -= lastdy;
@@ -471,8 +481,8 @@ void preventCollision(float lastdx, float lastdy){
                 float dx, dy, dfx, dfy;
                 dx = (g+i)->x - (g+gladid)->x;
                 dy = (g+i)->y - (g+gladid)->y;
-                dfx = 0.5 * dx / h;
-                dfy = 0.5 * dy / h;
+                dfx = GLAD_HITBOX * dx / h;
+                dfy = GLAD_HITBOX * dy / h;
 
                 (g+gladid)->x = (g+i)->x - dfx;
                 (g+gladid)->y = (g+i)->y - dfy;
@@ -481,6 +491,8 @@ void preventCollision(float lastdx, float lastdy){
     }
 }
 
+//as funcoes unsafe cumprem o papel das mesmas funções da API, porém sem mexer na memória, mutex, alterar o actioncode ou trancar o gladiador.
+//servem para ser usadas dentro de outras funções.
 void turnToUnsafe(float x, float y){
     (g+gladid)->head = getNormalAngle(getAngle(x,y));
 }
@@ -519,16 +531,31 @@ void attackMeleeUnsafe(float x, float y){
             float dist = getDistUnsafe((g+i)->x, (g+i)->y);
             float ang = getAngle((g+i)->x, (g+i)->y) - (g+gladid)->head;
             ang = getNormalAngle(ang);
-            if ( dist <= 1 && (ang <= 90 || ang >= 270) ){
+            if ( dist <= 1 && (ang <= 90 || ang >= 270) ){ //180g de raio de ataque
                 (g+i)->lasthit = getNormalAngle(getAngleFromAB((g+i)->x, (g+i)->y, (g+gladid)->x, (g+gladid)->y));
                 setDamagedMe(i, gladid);
-                dealDamage(i, (g+gladid)->dmg);
+                dealDamage(i, (g+gladid)->dmg * 1.2);
             }
         }
     }
 }
 
+//define a posicao e direcao inicial do gladiador
+void setStartingPos(){
+    float centerX = screenW/2;
+    float centerY = screenH/2;
+    float radius = screenH/2 * 0.8;
+    float dang = 360/nglad;
+    float x,y;
+    calcSidesFromAngleDist(&x, &y, radius, dang * gladid);
+    (g+gladid)->x = centerX + x;
+    (g+gladid)->y = centerY + y;
+    turnToUnsafe(centerX, centerY);
+}
+
+//aguarda o tempo ate o gladiador estar pronto para agir novamente
 void waitForLockedStatus(){
+    //updates nos projeteis, tempo e grava na arquivo, mesmo quando o gladiador nao pode agir
     while ( ((g+gladid)->lockedfor > 0 || (g+gladid)->buffs[BUFF_STUN].timeleft > 0) && !endsim){
         updateProjectiles();
         updateTime();
@@ -537,11 +564,13 @@ void waitForLockedStatus(){
     }
 }
 
+//espera a mutex estar liberada e carrega o conteudo da memoria na struct
 void waitLoad(){
     waitForMutex();
     loadStructFromMemory();
 }
 
+//guarda struct na memoria, libera a mutex e espera o gladiador estar pronto para agir de novo
 void saveRelease(){
     saveStructToMemory();
     releaseMutex();
@@ -550,9 +579,9 @@ void saveRelease(){
 
 int main(int argc, char *argv[]){
     srand(time(NULL));
-    g = NULL;
-    p = NULL;
-    outString = NULL;
+    g = NULL; //struct dos gladiadores
+    p = NULL; //struct dos projeteis
+    outString = NULL; //string que vai ser escrita no arquivo de saida
 
     gladid = atoi(argv[1]);
     nglad = atoi(argv[2]);
@@ -561,8 +590,15 @@ int main(int argc, char *argv[]){
 
     startStructFromMemory();
 
+    //loop() é o código do usuário
     while(!kbhit() && !endsim){
+        actioncode = ACTION_NONE;
         loop();
+        if (actioncode == ACTION_NONE){
+            updateProjectiles();
+            updateTime();
+            recordSteps();
+        }
     }
     if (endsim){
         waitForMutex();
@@ -574,7 +610,3 @@ int main(int argc, char *argv[]){
         releaseMutex();
     }
 }
-
-
-
-

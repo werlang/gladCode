@@ -12,6 +12,7 @@ struct params {
     int n;
 };
 
+//thread que compila e roda cada gladiador
 DWORD WINAPI thread(LPVOID p){
     struct params *input = p;
 
@@ -29,6 +30,7 @@ DWORD WINAPI thread(LPVOID p){
     return 0;
 }
 
+//o output contém contém em sequencia as ações de cada gladiador, este função ordena as linhas por tempo.
 void sortOutput(){
     FILE *arq = fopen("output.txt","r");
     if (arq != NULL){
@@ -36,9 +38,9 @@ void sortOutput(){
         char buffer[500];
         int lines = 0;
 
+        //guarda em outmat todo conteudo de output
         while (!feof(arq)){
             fgets(buffer, 499, arq);
-            //printf("%s.\n",buffer);
             if (!feof(arq)){
                 if (outmat == NULL)
                     outmat = (char**)malloc(sizeof(char*));
@@ -54,6 +56,7 @@ void sortOutput(){
         char strval[500], *pos;
         float val1, val2;
         char temp[500];
+        //ordena de acordo com o tempo no inicio de cada linha
         do{
             troca = 0;
             for (i=0 ; i<lines-1 ; i++){
@@ -87,6 +90,7 @@ void sortOutput(){
 int main(){
     DWORD dwThreadId;
 
+    //apaga aquivo de output caso ele já exista
     FILE *arq = fopen("output.txt","r");
     if (arq != NULL){
         fclose(arq);
@@ -96,17 +100,20 @@ int main(){
     struct params p[nglad];
     HANDLE hThread[nglad];
 
-    startStructSharedMemory(); //reserva memoria que sera compartilhada
+    //inicia memoria que sera compartilhada para struct e para o contador de tempo de cada processo
+    startStructSharedMemory();
     startCounterSharedMemory();
 
-
+    //inicializações do allegro para o render runtime
+    /*
     printf("Starting render... ");
     if (!renderInit()){
         return -1;
     }
     printf("Done.\n");
+    */
 
-
+    //chama uma thread para cada gladiador
     int i;
     for (i=0 ; i<nglad ; i++){
         char input[100];
@@ -127,14 +134,17 @@ int main(){
             printf("CreateThread() failed, error: %i.\n", (int)GetLastError());
     }
 
-    renderLoop();
+    //render em tempo de execução
+    //renderLoop();
 
+    //espera todas threads terminarem
     WaitForMultipleObjects(
         nglad,
         hThread,
         1,
         INFINITE);
 
+    //ordena as linhas do arquivo de saída de acordo com o tempo da simulação
     printf("All threads closed.\n");
     printf("Sorting output file...  ");
     sortOutput();
