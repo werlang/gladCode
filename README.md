@@ -120,43 +120,70 @@ loop é executado a cada intervalo de tempo da rodada (0.1s)
 Exemplo na linguagem C:
 
 ```C
+#include "gladCodeAPI.c"
+
 setup(){
-	registerGlad();
-	setName("Tutorius");
-	setSTR(7);
-	setAGI(5);
-	setINT(3);
-	upgradeSTR();
+    registerGlad();
+    setName("B.War");
+    setSTR(9);
+    setAGI(4);
+    setINT(2);
+
 }
 
+int hpant = 1000;
 loop(){
-	float x_i, y_i;
-	if (getLowHp(&x_i,&y_i)){
-		if (getDist(x_i,y_i) > 1){
-			if (getMyAp() >= 10)
-				charge(x_i,y_i);
-			else
-				moveTo(x_i,y_i);
-		}
-		else{
-			if (getMyAp() >= 70 || (getMyHp() <= 40 && getMyAp() >= 20))
-				block();
-			attackMelee();
-		}
-	}
-	else
-		turn(60);
-	
+    float x, y;
+    if ( !isLockedTargetVisible() ){
+        if ( howManyEnemies() > 0 ){
+            getLowHp(&x, &y);
+            lockOnTarget(x,y);
+            if (doYouSeeMe(x,y) && getBlockTimeLeft() <= 0 && getMyAp() >= 25){
+                block();
+            }
+            if (getMyAp() >= 15 && getDist(x,y) > 2){
+                charge();
+            }
+            else
+                moveTo(x,y);
+        }
+        else{
+            if (getMyHp() < hpant){
+                hpant = getMyHp();
+                turnToHeading(whereThatCameFrom());
+            }
+            else{
+                moveTo(screenW/2, screenH/2);
+            }
+        }
+    }
+    else{
+        getLockedTargetCoords(&x,&y);
+        if (doYouSeeMe(x,y) && getBlockTimeLeft() <= 0 && getMyAp() >= 25){
+            block();
+        }
+        else if (getDist(x,y) <= 1)
+            attackMelee(x,y);
+        else if (getMyAp() >= 15 && getDist(x,y) > 2){
+            charge();
+        }
+        else
+            moveTo(x,y);
+    }
 }
 ```
+
+Pastas:
+
+sample - Arquivos fonte de exemplo para cada gladiador. Possuem as funções setup, loop e um include para gladCodeAPI.c
+balance - Arquivos fonte feitos para balancear valores de habilidades de cada tipo de gladiador. Contém estratégias básicas.
 
 Arquivos:
 
 gladCodeMain.c - Arquivo principal. Recebe como argumento o número de gladiadores, e o nome do arquivo fonte de cada um. Este programa chama uma thread para cada gladiador.  
-c1.c, c2.c, etc - Arquivos fontes de exemplo para cada gladiador. Possuem as funções setup, loop e um include para gladCodeAPI.c
 gladCodeCore.c - Código que será executado por cada thread. Possui o main que chama setup e loop, bem como a maioria das funções que fazem parte da simulação.
 gladCodeAPI.c - Cada função disponível para o programador dos gladiadores está contida aqui.  
-gladCodeRuntimeRender.c - Responsável por renderizar a batalha enquanto está sendo processada. Utiliza a biblioteca Allegro para isso. É um arquivo provisório, só para dar ideia do que está acontecendo enquanto o programa está correndo. A renderização fo projeto será feita baseada num arquivo texto de saída, futuramente.  
 gladCodeSMem.c - Possuem as funções responsáveis por manipular a memória compartilhada e o mutex.  
-gladCodeGlobals.c - Possui a definição da struct, variáveis globais e o protótipo de algumas funções.  
-output1.txt, output2.txt, etc - Arquivos com exexmplos de resultados da simulação.
+gladCodeGlobals.c - Possui a definição da struct, variáveis globais, constantes e o protótipo de algumas funções.  
+output.txt - Arquivo com exexmplo de resultado da simulação.
+gladCodeRuntimeRender.c - Responsável por renderizar a batalha enquanto está sendo processada. Utiliza a biblioteca Allegro para isso. É um arquivo provisório, só para dar ideia do que está acontecendo enquanto o programa está correndo. A renderização fo projeto será feita baseada num arquivo texto de saída, futuramente.  
