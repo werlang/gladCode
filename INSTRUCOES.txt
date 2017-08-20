@@ -1,0 +1,222 @@
+gladCode
+Batalha de agentes virtuais inteligentes usando temática fantasia medieval
+
+1. Objetivo
+O objetivo é utilizando funções pré-definidas, e lógica de programação criar a inteligência de gladiadores virtuais. Estes gladiadores irão batalhar até sobrar somente um na arena.
+Cada equipe possuirá três gladiadores disponíveis, e a cada nova rodada um novo gladiador será escolhido para participar da batalha. Gladiadores sobreviventes de rodadas anteriores poderão ser escolhidos novamente para batalhar em rodadas posteriores.
+
+2. Gladiadores
+Os gladiadores iniciam em nível 1. Cada nível concede a eles poder adicional na forma de melhorias de atributos.
+Os gladiadores possui três atributos principais: 
+Força (STR): Força física e resistência do gladiador. Afeta o dano que o gladiador causa e sua quantidade de pontos de vida (hp). 
+Agilidade (AGI): Agilidade, rapidez e destreza do gladiador. Afeta o deslocamento do galdiador dentro da arena e a velocidade dos ataques dele.
+Inteligência (INT): Rapidez de raciocínio e Capacidade intelectual do gladiador. Afeta a valocidade do gladiador para executar uma habilidade e a quantidade de vezes que ele consegue executar uma habilidade até se esgotar mentalmente.
+
+Cada um destes três atributos principais são responsáveis por atributos secundários, descritos a seguir.
+Dano (STR): Dano causado pelo gladiador ao realizar um ataque corpo-a-corpo ou a distância.
+Pontos de vida, ou hp (STR): Dano que o gladiador suporta levar antes de morrer. Representa a resiliência física do gladiador.
+Velocidade de ataque (AGI): Quantidade de ataques que o gladiador consegue executar por segundo.
+Velocidade de movimento (AGI): Distância que o gladiador consegue percorrer por segundo, medida em passos.
+Pontos de habilidade, ou ap (INT): Recurso gasto ao executar uma habilidade. Representa a resiliência mental do gladiador.
+Velocidade de habilidade (INT): Quantidade de habilidades que o gladiador consegue executar por segundo. Representa a rapidez de raciocício do gladiador.
+
+3. Detalhes sobre os atributos
+Ao criar um gladiador, as equipes precisam utilizar a função setup() (explicado em 9) para definir a distribuição inicial dos atributos básicos.
+Cada gladiador precisa receber 15 pontos distribuidos entre os atributos básicos STR, AGI, e INT.
+Os efeitos dos atributos básicos sobre os secundários estão descritos a seguir:
+
+STR
+Dano (dmg): 5-15 hp (1 str = 1 dmg)
+Vida (hp): 100-300 hp (1 str = 20 hp)
+
+AGI
+V. Ataque (as): 0.5-1.5 att/s (1 agi = 0.1 as)
+V. Movimento (ms): 1-2 p/s (1 agi = 0.1 ms)
+
+INT
+Habilidade (ap): 100-300 ap (1 int = 20 ap)
+V. Habilidade (cs): 0.5-1.5 cast/s (1 int = 0.1 cs)
+
+4. Atributos fixos
+Raio de visão: 60g - arco de visão do gladiador  
+Distância de visão: 9p - distancia máxima que o gladiador enxerga  
+Recuperação de ap: 3% maxAP/s
+
+5. Ambiente
+Ao construir um gladiador, a equipe usará as funções da API gladCode para fazer o gladiador interagir com o ambiente.
+O ambiente é uma arena, que possui dimensões 25x25 p(passos).
+A simulação transcorre em intervalos de tempo de 0.1s.
+
+6. Simulação
+Cada equipe irá disponibilizar o código de três gladiadores. A cada rodada, um gladiador é escolhido por cada equipe, e eles combatem até que reste somente um sobrevivente. A cada nova rodada, o mestre deve escolher um novo gladiador, levando em consideração que os que já morreram nas rodadas anteriores não podem mais ser escolhidos. Um gladiador sobrevivente de outra rodada quando escolhido para uma nova rodada usa seu hp (vida), nível e atributos atuais. Quando houver somente um gladiador vivo, o torneio termina, e a equipe deste gladiador é a vencedora. As próximas colocações são definidas a partir da ordem das mortes dos últimos gladidores de cada equipe.
+Cada vez que algum gladiador morrer, todos que desferiram algum dano aumentam um nível e ganham um ponto extra em um atributo a escolha (de acordo com a uma função específica para escolher o atributo, explicada em 8). O limite máximo de cada atributo é 10 pontos. Caso a função upgrade não tenha sido chamada nenhuma vez, ou o atributo já esteja no máximo, o ponto é perdido.
+
+7. Habilidades
+Os gladiadores durante as lutas, além de se movimentar, e utlizar ataques normais, podem usar habilidades especiais. Para usar habilidades ele precisa chamar funções específicas para isso (explicado em 8). Cada habilidade possui um custo de AP ao ser executada, e causa um efeito específico, descrito a seguir:
+
+Habilidade | Custo(ap) | Descrição
+Fireball | 20 | Causa 0-5 (INT) de dano num ponto central de impacto e 0-15 (INT) decrescendo com raio 2p ao longo de 3s
+Teleport | 30 | Teleporta para ponto. Distancia máxima  5-15 p (INT)
+Charge | 10 | Move em direção ao alvo com 4x speed. Ao acertar o alvo, realiza um ataque corpo-a-corpo e causa slow 0-50% (STR) por 5s
+Block | 25 | Reduz dano levado em 20-80% (STR) por 5s caso atacante esteja no raio de visão, caso contrario efeito pela metade.
+Assassinate | 15 | Faz um ataque contra o alvo. Causa dano adicional de AGI caso o alvo não esteja lhe enxergando e outro adicional de AGI caso o alvo esteja atordoado. 
+Ambush |35 | Torna-se invisível por 2-6s (AGI), ou até realizar um ataque ou lançar uma habilidade. Ataques realizados enquanto invisivel atordoam o alvo por 1s.
+
+
+8. Funções
+A inteligência e comportamento dos gladiadores devem ser programados utilizando a sintaxe de uma das linguagens disponíveis no projeto (atualmente somente a linguagem C). Além das estruturas básicas da linguagem, como o ambiente da simulação é algo criado especialmente para a gladCode, existem funções específicas de entrada, que fazem com que o gladiador perceba o que está acontecendo na arena, e funções de saída que fazem com que o gladiador interaja com os elementos presentes na arena. Estas funções estão descritas a seguir:
+
+8.1 Movimento
+- turn(g) - se vira g graus. positivo para direita
+- turnTo(x,y) - vira na direção do ponto
+- turnToHeading(g) - vira na direção do angulo. 0 = cima
+- moveTo(x,y) - vira e move em direção ao ponto
+- moveForward() - Se move para frente
+- moveBackwards() - Se move para trás
+- moveLeft() - Se move para esquerda sem se virar
+- moveRight() - Se move para direita sem se virar
+
+8.2 Ataque
+- attackMelee(x,y) - vira para o ponto e ataca para frente num arco de 180g e distancia 1p, dano com 10% de bonus.
+- attackRanged(x,y) - vira para o ponto e ataca com projétil para frente com distancia 15p e tempo de percurso 0.5s. Ao acertar causa dano.
+
+8.3 Sentidos
+- bool doYouSeeMe(x,y) - returna true caso voce esteja no raio de visão do alvo no ponto
+- int getMyX() - retorna sua coordenada x
+- int getMyY() - retorna sua coordenada y
+- getMyCoords(&x,&y) - atribui suas coordenadas
+- int howManyEnemies() - retorna quantos gladiadores existem no campo de visão
+- bool getLowHp(&x,&y) - atribui as coordenadas do alvo de menor hp no seu campo de visão e retorna true, ou false caso não haja nenhum alvo no ponto
+- bool getHighHp(&x,&y) - atribui as coordenadas do alvo de maior hp no seu campo de visão e retorna true, ou false caso não haja nenhum alvo no ponto
+- bool getCloseEnemy(&x,&y) - atribui as coordenadas do alvo mais próximo no seu campo de visão e retorna true, ou false caso não haja nenhum alvo no ponto
+- bool getFarEnemy(&x,&y) - atribui as coordenadas do alvo mais longe no seu campo de visão e retorna true, ou false caso não haja nenhum alvo no ponto
+- float getEnemyHealth(x,y) - retorna percentagem de vida do alvo no ponto, ou 0 caso não haja alvo no ponto
+- int getMyHp() - retorna o hp
+- int getMyAp() - retorna o ap
+- int getMySTR() - retorna STR
+- int getMyAGI() - retorna AGI
+- int getMyINT() - retorna INT
+- float getMySpeed() - retorna speed
+- float getMyHeading() - retorna angulo da direcao 0 = cima
+- bool areYouAWarrior(x,y) - retorna true caso o alvo no ponto tenha STR como seu maior atributo
+- bool areYouARogue(x,y) - retorna true caso o alvo no ponto tenha AGI como seu maior atributo
+- bool areYouAMage(x,y) - retorna true caso o alvo no ponto tenha INT como seu maior atributo
+- float whereThatCameFrom() - retorna o angulo que originou o último ataque recebido
+- bool lockOnTarget(x,y) - fixa a atenção no alvo no ponto. false se nao tiver alvo
+- bool isLockedTargetVisible() retorna true caso alvo fixado esteja no campo de visão
+- int getLockedTargetCoords(&x,&y) - atribui as coordenadas do alvo fixado, retorna 0 caso o alvo nao esteja mais visivel
+- float getLockedTargetSpeed() - retorna a velocidade do alvo fixado
+- float getLockedTargetHeading() - retorna a direção do alvo fixado
+- float getLockedTargetRelativeHeading() - retorna a direção do alvo fixado relativa ao gladiador
+
+8.4 Habilidades
+- fireball(x,y) - lança fireball no ponto
+- teleport(x,y) - teleporta para o ponto
+- charge() - usa charge no alvo fixado
+- block() - usa block
+- assassinate() - usa assassinate no alvo fixado
+- ambush() - usa ambush
+- float getBlockTimeLeft() - retorna o tempo restante da habilidade block
+- float getAmbushTimeLeft() - retorna o tempo restante da habilidade ambush
+
+8.5 Matemática
+- float getDist(x,y) - retorna a distância até o ponto
+- float getAngle(x,y) - retorna o angulo até o ponto
+
+8.6 Melhorias
+- upgradeSTR() - melhora atributo STR na próxima vez que passar de nível
+- upgradeAGI() - melhora atributo AGI na próxima vez que passar de nível
+- upgradeINT() - melhora atributo INT na próxima vez que passar de nível
+
+8.7 Métodos do setup
+- registerGlad() - Registra o gladiador no torneio (inicializa variáveis)
+- setSTR(n) - altera a quantidade de pontos de STR que o gladiador possui. Não deve ultrapassar 10, a soma de STR, INT e AGI não deve ultrapassar 15
+- setAGI(n) - altera a quantidade de pontos de AGI que o gladiador possui
+- setINT(n) - altera a quantidade de pontos de INT que o gladiador possui
+- upgradeSTR(), upgradeAGI(), upgradeINT() - pode ser chamado aqui também para definir prioridade inicial
+
+9. Código
+O código deverá incluir o arquivo "gladCodeApi.c". Este arquivo contém todas funções que interagem com o ambiente da simulação.
+O programa deve possui estas duas funções: setup e loop.
+A função setup é executada uma única vez, no início do torneio. É onde é feito a configuração da distribuição dos pontos do gladiador.
+A função loop é executada a cada intervalo de tempo da rodada (0.1s).
+O programa não deve conter a função main().
+
+10. Exemplo na linguagem C:
+
+#include "gladCodeAPI.c"
+
+setup(){
+    registerGlad();
+    setName("B.War");
+    setSTR(9);
+    setAGI(4);
+    setINT(2);
+	upgradeAGI();
+}
+
+int hpant = 1000;
+loop(){
+    float x, y;
+    if ( !isLockedTargetVisible() ){
+        if ( howManyEnemies() > 0 ){
+            getLowHp(&x, &y);
+            lockOnTarget(x,y);
+            if (doYouSeeMe(x,y) && getBlockTimeLeft() <= 0 && getMyAp() >= 25){
+                block();
+            }
+            if (getMyAp() >= 15 && getDist(x,y) > 2){
+                charge();
+            }
+            else
+                moveTo(x,y);
+        }
+        else{
+            if (getMyHp() < hpant){
+                hpant = getMyHp();
+                turnToHeading(whereThatCameFrom());
+            }
+            else{
+                moveTo(screenW/2, screenH/2);
+            }
+        }
+    }
+    else{
+        getLockedTargetCoords(&x,&y);
+        if (doYouSeeMe(x,y) && getBlockTimeLeft() <= 0 && getMyAp() >= 25){
+            block();
+        }
+        else if (getDist(x,y) <= 1)
+            attackMelee(x,y);
+        else if (getMyAp() >= 15 && getDist(x,y) > 2){
+            charge();
+        }
+        else
+            moveTo(x,y);
+    }
+}
+```
+
+11. Pastas:
+
+log - Mantém um histórico de todas batalhas já realizadas. O nome do arquivo segue o formato AAMMDDHHmmSS.txt: A: ano, M: mês, D: dia, H: hora, m: minuto, S: segundo.
+res - Recursos de imagem, sons e fontes utlilizadas pela UI e pelo Render.
+tcc - Compilador C para gerar os programa a partir dos códigos fonte do usuário
+tmp - Pasta onde serão colocados os arquivos de texto de saída e programas compilados do usuário.
+usr - Onde devem estar todos os arquivos enviados pelas equipes.
+
+12. Tutorial
+Para usar o simulador gladCode, você precisa colocar todos os arquivos que serão usados na pasta usr.
+Um deles deverá ser um arquivo de texto que irá conter informações sobre sua equipe, e os gladiadores que a compõe. O fortato do aquivo deverá ser o seguinte:
+
+Nome da Equipe
+Nome Glad1  codigo-glad1.c  folhasprite-glad-1.png
+Nome Glad2  codigo-glad2.c  folhasprite-glad-2.png
+Nome Glad3  codigo-glad3.c  folhasprite-glad-3.png
+
+Note que o arquivo possui 4 linhas.
+Nas três últimas linhas, que definem cada gladiador, note que são utilizados dois espaços para separar o nome do gladiador do arquivo fonte dele e da folha de sprites.
+A folha de sprites deverá ser gerada através do gerador online disponível na página http://gaurav.munjal.us/Universal-LPC-Spritesheet-Character-Generator/
+
+Após possuir este arquivo de configuração da equipe, copie ele, bem como os três códigos fonte e as três folhas de sprite para a pasta usr.
+A seguir, basta executar o arquivo gladCodeMain.exe
