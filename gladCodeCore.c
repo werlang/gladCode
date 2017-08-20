@@ -8,7 +8,7 @@
 #include"GladCodeGlobals.c"
 #include "GladCodeSMem.c"
 
-void startStructFromMemory(){
+void startStructFromMemory(char name[]){
     g = (struct gladiador*)malloc(sizeof(struct gladiador) * (nglad));
     int i;
     //todos começam com lvl 0, para saber quem já foi carregado da memoria
@@ -18,6 +18,7 @@ void startStructFromMemory(){
     //o primeiro executa o setup
     if (gladid == 0){
         setup();
+        strcpy((g+gladid)->name, name);
         if (!checkSetup()){
             printf("Error setup %i\n",gladid);
             return;
@@ -29,12 +30,13 @@ void startStructFromMemory(){
     }
     else{
         //todos os outros esperam pelo gladiador anterior
-        while ((g+gladid-1)->lvl != 1){
+        while ((g+gladid-1)->lvl == 0){
             waitForMutex();
             loadStructFromMemory();
             releaseMutex();
         }
         setup();
+        strcpy((g+gladid)->name, name);
         if (!checkSetup()){
             printf("Error setup %i\n",gladid);
             return;
@@ -45,7 +47,8 @@ void startStructFromMemory(){
         printf("%s (thread %i) setup complete.\n",(g+gladid)->name, gladid);
     }
     //espera o ultimo estar pronto
-    while ((g+nglad-1)->lvl != 1){
+    while ((g+nglad-1)->lvl == 0){
+        //printf("%i %i\n",gladid,(g+nglad-1)->lvl);
         waitForMutex();
         loadStructFromMemory();
         releaseMutex();
@@ -306,24 +309,13 @@ void updateProjectiles(){
     }
 }
 
-void printOutput(){
-    FILE *arq = fopen("output.txt","a");
-    if (arq == NULL){
-        arq = fopen("output.txt","w");
-        fclose(arq);
-        arq = fopen("output.txt","a");
-    }
-    fputs(outString, arq);
-    fclose(arq);
-}
-
 //atualiza tudo que depende do tempo no gladiador
 void updateTime(){
     int i;
     waitForMutex();
     loadStructFromMemory();
     //lvl up dos gladiadores que bateram no que morreu
-    if ((g+gladid)->hp <= 0 && !endsim){
+    if ((g+gladid)->hp <= 0){
         for (i=0 ; i<nglad ; i++){
             if (haveYouDamagedMe(i) && i != gladid && (g+i)->hp > 0){
                 (g+i)->lvl++;
@@ -334,7 +326,7 @@ void updateTime(){
                 if ( (g+i)->INT < 10 && (g+i)->up == 3 )
                     (g+i)->INT++;
 
-                //printf("%s %i %i %i\n",(g+i)->name, (g+i)->STR, (g+i)->AGI, (g+i)->INT);
+                //printf("UP %s %i %i %i %i\n",(g+i)->name, (g+i)->lvl, (g+i)->STR, (g+i)->AGI, (g+i)->INT);
             }
         }
         endsim = 1;
@@ -361,15 +353,16 @@ void updateTime(){
         }
         timeout--;
         //printf("%i %.1lf %.1lf lower %i alive\n",gladid,cont[gladid], lower, alive);
-        if (!alive)
+        if (!alive){
             endsim = 1;
+        }
     }while (cont[gladid] > lower && !endsim && timeout > 0);
     if (timeout == 0){
         printf("%s (thread %i) timed out!\n",(g+loweri)->name,loweri);
         updateSimCounter(loweri, timeInterval);
     }
 
-    if ((g+gladid)->hp > 0 && !endsim){
+    if ((g+gladid)->hp > 0){
         waitForMutex();
         loadStructFromMemory();
 
@@ -390,6 +383,7 @@ void updateTime(){
         saveStructToMemory();
         releaseMutex();
     }
+    //printf("EU %s %i\n",(g+gladid)->name, (g+gladid)->lvl);
 }
 
 //grava na outString o que o gladiador fez no presente momento
@@ -406,10 +400,9 @@ void recordSteps(){
             strcat(buffstr, buffer);
         }
     }
-    sprintf(buffer, "%.1lf|%i|%s|%i|%i|%i|%i|%.2f|%.2f|%.2f|%.1f|%.1f|%.1f|%.2f|%.2f|%.2f|%s|%i\n",
+    sprintf(buffer, "%.1lf|%i|%i|%i|%i|%i|%.2f|%.2f|%.2f|%.1f|%.1f|%.1f|%.2f|%.2f|%.2f|%.2f|%.2f|%s|%i\n",
             simtime, //time elapsed
             gladid, //thread num
-            (g+gladid)->name, //glad name
             (g+gladid)->lvl, //lvl
             (g+gladid)->STR, //STR
             (g+gladid)->AGI, //AGI
@@ -422,9 +415,12 @@ void recordSteps(){
             (g+gladid)->head, //heading (0-359.9)
             (g+gladid)->lockedfor, //time until can act again
             (g+gladid)->hp, //life
+            (g+gladid)->maxhp, //maximum life
             (g+gladid)->ap, //ability points
+            (g+gladid)->maxap, //maximum ap
             buffstr, //buffs array
             actioncode); //code for action done
+
     //printf(buffer);
     if (outString == NULL){
         outString = (char*)malloc(sizeof(char) * (strlen(buffer)+1) );
@@ -436,6 +432,19 @@ void recordSteps(){
         strcat(outString, buffer);
     }
 
+}
+
+void printOutput(){
+    waitForMutex();
+    loadStructFromMemory();
+    recordSteps();
+    releaseMutex();
+
+    char name[20];
+    sprintf(name, "tmp\\output%i.txt",gladid);
+    FILE *arq = fopen(name,"w");
+    fputs(outString, arq);
+    fclose(arq);
 }
 
 //verifica se somatorio da distribuicao nao é 15 pontos, ou se cada atributo nao respeita o intervalo 0-10
@@ -588,7 +597,19 @@ int main(int argc, char *argv[]){
 
     startMutex();
 
-    startStructFromMemory();
+    startStructFromMemory(argv[3]);
+
+    if (argc > 4){
+        waitForMutex();
+        loadStructFromMemory();
+        (g+gladid)->hp = (g+gladid)->maxhp * atof(argv[4])/100;
+        (g+gladid)->lvl = atoi(argv[5]);
+        (g+gladid)->STR = atoi(argv[6]);
+        (g+gladid)->AGI = atoi(argv[7]);
+        (g+gladid)->INT = atoi(argv[8]);
+        saveStructToMemory();
+        releaseMutex();
+    }
 
     //loop() é o código do usuário
     while(!kbhit() && !endsim){
@@ -601,12 +622,13 @@ int main(int argc, char *argv[]){
         }
     }
     if (endsim){
-        waitForMutex();
         if ((g+gladid)->hp <= 0)
             printf("%s (thread %i) died\n",(g+gladid)->name, gladid);
-        else
+        else{
+            updateTime();
+            recordSteps();
             printf("Winner: %s (thread %i)\n", (g+gladid)->name, gladid);
+        }
         printOutput();
-        releaseMutex();
     }
 }

@@ -10,6 +10,7 @@ char fmName[50]="StructFileMapObject";
 char ctName[50]="CounterFileMapObject";
 HANDLE ghMutex;
 
+//funcao que inicia a memoria compartilhada entre os processos
 int startSharedMemory(int size, char *name){
     HANDLE hMapFile;
 
@@ -27,6 +28,7 @@ int startSharedMemory(int size, char *name){
         return 1;
 }
 
+//cria memoria compartilhada do tamanho da struct dos gladiadores
 void startStructSharedMemory(){
     if (startSharedMemory(sizeof(struct gladiador) * nglad, fmName))
         printf("Struct filemap created.\n");
@@ -34,6 +36,7 @@ void startStructSharedMemory(){
         printf("Could not create file mapping object (%d).\n", GetLastError());
 }
 
+//cria memoria compartilhada para o tempo trnascorrido por cada processo
 void startCounterSharedMemory(){
     if (startSharedMemory(sizeof(double) * nglad, ctName))
         printf("Simtime filemap created.\n");
@@ -45,6 +48,7 @@ void writeOnSharedMemory(void *info, int size){
     HANDLE hMapFile;
     void *pBuf;
 
+    //acessa a memoria pelo handler
     hMapFile = OpenFileMapping(
         FILE_MAP_ALL_ACCESS,   // read/write access
         FALSE,                 // do not inherit the name
@@ -55,6 +59,7 @@ void writeOnSharedMemory(void *info, int size){
         return;
     }
 
+    //recebe o conteudo da memoria em pBuf
     pBuf = (void*) MapViewOfFile(hMapFile, // handle to map object
         FILE_MAP_ALL_ACCESS,  // read/write permission
         0,
@@ -74,7 +79,10 @@ void writeOnSharedMemory(void *info, int size){
     return;
 }
 
+//atualiza o contador de tempo da simulacao de um gladiador
 void updateSimCounter(int i, float timeInterval){
+    waitForMutex();
+
     HANDLE hMapFile;
     double *pBuf;
 
@@ -109,8 +117,11 @@ void updateSimCounter(int i, float timeInterval){
     CloseHandle(hMapFile);
 
     free(cont);
+
+    releaseMutex();
 }
 
+//retorna o tempo atual de um processo
 double getSimCounter(int i){
     HANDLE hMapFile;
     double *pBuf;
@@ -148,6 +159,7 @@ double getSimCounter(int i){
     return n;
 }
 
+//atribui por referencia no vetor o contador de tempo de todos gladiadores
 void getAllSimCounters(double cont[]){
     HANDLE hMapFile;
     double *pBuf;
@@ -180,18 +192,16 @@ void getAllSimCounters(double cont[]){
     CloseHandle(hMapFile);
 }
 
+//le e retorna um ponteiro para a memoria compartilhada
 void *readFromSharedMemory(int size){
     HANDLE hMapFile;
     void *pBuf, *result;
-
-    //printf("%i 0\n",gladid);
 
     hMapFile = OpenFileMapping(
         FILE_MAP_ALL_ACCESS,   // read/write access
         FALSE,                 // do not inherit the name
         fmName);               // name of mapping object
 
-    //printf("%i 1\n",gladid);
     if (hMapFile == NULL){
         printf("Could not open file mapping object (%d).\n",GetLastError());
         return;
@@ -203,7 +213,6 @@ void *readFromSharedMemory(int size){
         0,
         0);
 
-    //printf("%i 2\n",gladid);
     if (pBuf == NULL){
         _tprintf("Could not map view of file (%d).\n", GetLastError());
         CloseHandle(hMapFile);
@@ -212,7 +221,6 @@ void *readFromSharedMemory(int size){
 
     result = malloc(size);
     memcpy ( result, pBuf, size );
-    //printf("%i 3\n",gladid);
 
     UnmapViewOfFile(pBuf);
     CloseHandle(hMapFile);
@@ -222,13 +230,9 @@ void *readFromSharedMemory(int size){
 
 void loadStructFromMemory(){
     int size = sizeof(struct gladiador) * nglad;
-    //printf("%i vumve\n",gladid);
     if (g != NULL){
-        //printf("%i nao null\n",gladid);
         free(g);
-        //printf("%i freezou\n",gladid);
     }
-    //printf("%i fora do if\n",gladid);
     g = (struct gladiador*)readFromSharedMemory(size);
 }
 
@@ -237,6 +241,7 @@ void saveStructToMemory(){
     writeOnSharedMemory(g, size);
 }
 
+//inicia a mutex, que garante que não mais que um processo vai estar escrevendo ao mesmo tempo na memoria compartilhada
 void startMutex(){
     ghMutex = CreateMutex(
         NULL,              // default security attributes
@@ -273,3 +278,82 @@ int releaseMutex(){
     }
     return 1;
 }
+
+void restartSharedMemory(){
+    HANDLE hMapFile;
+    double *pBuf;
+
+    hMapFile = OpenFileMapping(
+        FILE_MAP_ALL_ACCESS,   // read/write access
+        FALSE,                 // do not inherit the name
+        ctName);               // name of mapping object
+
+    if (hMapFile == NULL){
+        printf("Could not open file mapping object (%d).\n",GetLastError());
+        return;
+    }
+
+    pBuf = (double*) MapViewOfFile(hMapFile, // handle to map object
+        FILE_MAP_ALL_ACCESS,  // read/write permission
+        0,
+        0,
+        0);
+
+    if (pBuf == NULL){
+        _tprintf("Could not map view of file (%d).\n", GetLastError());
+        CloseHandle(hMapFile);
+        return;
+    }
+
+    int i;
+    double *cont = (double*)malloc(sizeof(double) * nglad);
+    for (i=0 ; i<nglad ; i++){
+        *(cont + i) = 0;
+    }
+    CopyMemory((double*)pBuf, cont, sizeof(double) * nglad);
+
+    UnmapViewOfFile(pBuf);
+    CloseHandle(hMapFile);
+
+    free(cont);
+
+
+    //acessa a memoria pelo handler
+    hMapFile = OpenFileMapping(
+        FILE_MAP_ALL_ACCESS,   // read/write access
+        FALSE,                 // do not inherit the name
+        fmName);               // name of mapping object
+
+    if (hMapFile == NULL){
+        _tprintf("Could not open file mapping object (%d).\n",GetLastError());
+        return;
+    }
+
+    //recebe o conteudo da memoria em pBuf
+    pBuf = (void*) MapViewOfFile(hMapFile, // handle to map object
+        FILE_MAP_ALL_ACCESS,  // read/write permission
+        0,
+        0,
+        0);
+
+    if (pBuf == NULL){
+        printf("Could not map view of file (%d).\n", GetLastError());
+        CloseHandle(hMapFile);
+        return;
+    }
+
+    int size = sizeof(struct gladiador) * nglad;
+    void *result = malloc(size);
+    memcpy ( result, pBuf, size );
+
+    g = (struct gladiador*)result;
+    for (i=0 ; i<nglad ; i++)
+        (g+i)->lvl = 0;
+
+    CopyMemory((void*)pBuf, g, size);
+
+    UnmapViewOfFile(pBuf);
+    CloseHandle(hMapFile);
+
+}
+

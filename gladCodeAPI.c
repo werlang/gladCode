@@ -19,27 +19,29 @@ void registerGlad(){
 }
 
 void setSTR(int n){
-    (g+gladid)->STR = n;
-    (g+gladid)->hp = 100 + n*20;
-    (g+gladid)->maxhp = (g+gladid)->hp;
-    (g+gladid)->dmg = n+5;
+    if (getSimCounter(gladid) <= 0.1){
+        (g+gladid)->STR = n;
+        (g+gladid)->hp = 100 + n*20;
+        (g+gladid)->maxhp = (g+gladid)->hp;
+        (g+gladid)->dmg = n+5;
+    }
 }
 
 void setAGI(int n){
-    (g+gladid)->AGI = n;
-    (g+gladid)->spd = 1 + n*0.1;
-    (g+gladid)->as = 0.5 + n*0.1;
+    if (getSimCounter(gladid) <= 0.1){
+        (g+gladid)->AGI = n;
+        (g+gladid)->spd = 1 + n*0.1;
+        (g+gladid)->as = 0.5 + n*0.1;
+    }
 }
 
 void setINT(int n){
-    (g+gladid)->INT = n;
-    (g+gladid)->ap = 100 + n*20;
-    (g+gladid)->maxap = (g+gladid)->ap;
-    (g+gladid)->cs = 0.5 + n*0.1;
-}
-
-void setName(char *str){
-    strcpy((g+gladid)->name, str);
+    if (getSimCounter(gladid) <= 0.1){
+        (g+gladid)->INT = n;
+        (g+gladid)->ap = 100 + n*20;
+        (g+gladid)->maxap = (g+gladid)->ap;
+        (g+gladid)->cs = 0.5 + n*0.1;
+    }
 }
 
 //indica o atributo que sera feito upgrade quando o gladiador subir de nivel
@@ -648,7 +650,8 @@ void charge(){
             if (!stopcharge){
                 attackMeleeUnsafe((g+target)->x, (g+target)->y);
                 actioncode = ABILITY_CHARGE;
-                addBuff(target , BUFF_MOVEMENT, 5, 1 - (float)(g+gladid)->STR/20);
+                if ((g+target)->buffs[BUFF_MOVEMENT].timeleft <= 0 || (g+target)->buffs[BUFF_MOVEMENT].value < 1)
+                    addBuff(target , BUFF_MOVEMENT, 5, 1 - (float)(g+gladid)->STR/20);
             }
 
             if ( (g+gladid)->buffs[BUFF_MOVEMENT].timeleft > 0){
@@ -678,7 +681,7 @@ void block(){
     saveRelease();
 }
 
-//ataca alvo no ponto, se estiver perto atordoa, se o alvo nao enxergar o gladiador e/ou estiver com stun, causa dano extra
+//ataca alvo no ponto, se o alvo nao enxergar o gladiador causa dano extra, e outro adicional caso esteja atordoado
 void assassinate(){
     if (isLockedTargetVisible()){
         waitLoad();

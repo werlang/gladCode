@@ -88,5 +88,8 @@ int gladid=0;
 float screenW = 25;
 float screenH = 25;
 float timeInterval = 0.1; //intervalo de tempo da simulacao
-float timeLimit = 300; //tempo limite da para o evento de fim da simulação
+float timeLimit = 200; //tempo limite da para o evento de fim da simulação
 int actioncode= ACTION_WAITING; //codigo da acao desemprenhada no instante
+int rounds, estado;
+int winners[3];
+
