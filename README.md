@@ -1,3 +1,7 @@
+Neste repositório constam os arquivos referentes à primeira versão da gladCode.
+A versão atual (gladCode 2.x) é um sistema web cuja simulação roda em um servidor, e o código deriva deste projeto.
+Acessem em https://gladcode.tk
+
 # gladCode
 Batalha de agentes virtuais inteligentes usando temática fantasia medieval
 
